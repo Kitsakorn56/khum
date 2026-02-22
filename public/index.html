@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="th" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>คำต้องห้าม × Multiplayer Word Game</title>
+    <link rel="icon" type="image/png" href="/logo-title.png">
+    <!-- Bootstrap 5 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- QR Code -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Socket.io -->
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;900&display=swap');
+        
+        * { font-family: 'Kanit', sans-serif; }
+        
+        :root {
+            --primary-color: #f97316;
+            --secondary-color: #1e3a8a;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+        }
+        
+        body {
+            background: url('/background.png') center/cover no-repeat fixed;
+            background-attachment: fixed;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.7);
+            pointer-events: none;
+            z-index: 0;
+            transition: all 0.3s ease;
+        }
+        
+        html[data-bs-theme="light"] body::before {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        html[data-bs-theme="light"] body {
+            color: #212529;
+        }
+        html[data-bs-theme="light"] .card {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: rgba(0, 0, 0, 0.1);
+            color: #212529;
+        }
+        html[data-bs-theme="light"] .card-body,
+        html[data-bs-theme="light"] .card-title {
+            color: inherit;
+        }
+        html[data-bs-theme="light"] .form-control {
+            background: #fff;
+            border-color: #ced4da;
+            color: #212529;
+        }
+        html[data-bs-theme="light"] .guess-input-row input {
+            background: #fff;
+            border-color: #ced4da;
+            color: #212529;
+        }
+        html[data-bs-theme="light"] .leaderboard-item {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        html[data-bs-theme="light"] .word-card {
+            background: url('/background-word.png') center no-repeat;
+            background-size: contain;
+            background-color: rgba(255,255,255,0.5);
+        }
+        html[data-bs-theme="light"] .word-card .word-text {
+            color: #1e293b;
+        }
+        html[data-bs-theme="light"] .word-card-footer {
+            background: rgba(0,0,0,0.05);
+            border-color: rgba(0,0,0,0.08);
+        }
+        html[data-bs-theme="light"] .word-card-wrapper.mine .word-card {
+            box-shadow: 0 0 0 3px var(--primary-color);
+        }
+        html[data-bs-theme="light"] .text-muted {
+            color: #6c757d !important;
+        }
+        html[data-bs-theme="light"] .btn-outline-light {
+            border-color: #212529;
+            color: #212529;
+        }
+        html[data-bs-theme="light"] .btn-outline-light:hover {
+            background: #212529;
+            color: #fff;
+        }
+        
+        .container-fluid {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .logo-container img {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .card {
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+        }
+        
+        .btn-orange {
+            background-color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+            color: white !important;
+        }
+        
+        .btn-orange:hover {
+            background-color: #ea6317 !important;
+            border-color: #ea6317 !important;
+            color: white !important;
+        }
+        
+        .logo-title {
+            font-size: 3rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #f97316 0%, #fbbf24 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .screen { 
+            display: none; 
+            animation: fadeIn 0.3s ease-in; 
+        }
+        
+        .screen.active { 
+            display: block; 
+        }
+        
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        
+        /* คำบนหัว: background-word.png มีแค่คำ, ชื่อ + ไอคอนอยู่ด้านล่าง */
+        .word-card-wrapper {
+            transition: transform 0.2s ease;
+            max-width: 100%;
+        }
+        .word-card-wrapper:hover {
+            transform: translateY(-2px);
+        }
+        .word-card-wrapper.mine .word-card {
+            box-shadow: 0 0 0 3px var(--primary-color);
+        }
+        .word-card {
+            background: url('/background-word.png') center no-repeat;
+            background-size: contain;
+            background-color: rgba(30, 41, 59, 0.3);
+            border: none;
+            border-radius: 10px 10px 0 0;
+            padding: 16px;
+            text-align: center;
+            min-height: 80px;
+            aspect-ratio: 600 / 200;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-width: 100%;
+            overflow: hidden;
+        }
+        .word-card .word-text {
+            color: #1e293b;
+            font-weight: 700;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+        }
+        .word-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+        }
+        .word-card-footer i {
+            color: var(--primary-color);
+            font-size: 1rem;
+        }
+        .word-card-footer .word-label {
+            color: inherit;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+        #wordsGrid .col-md-6,
+        #wordsGrid .col-lg-4 {
+            min-width: 0;
+        }
+
+        /* หมวดที่เลือก: แสดงรูปแบบแบนเนอร์ เต็มรูปไม่ขาด */
+        .selected-category-banner {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 8px 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .selected-category-banner img {
+            width: 120px;
+            height: 80px;
+            object-fit: contain;
+            border-radius: 8px;
+            display: block;
+        }
+        .selected-category-banner .selected-category-name {
+            font-size: 1rem;
+        }
+
+        .timer-display {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: conic-gradient(var(--primary-color) var(--progress, 0%), #334155 var(--progress, 0%));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: bold;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            margin: 0 auto;
+            transition: all 0.1s linear;
+        }
+        
+        .toast-custom {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--primary-color);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+            z-index: 9999;
+        }
+        
+        @keyframes slideIn { 
+            from { transform: translateX(400px); } 
+            to { transform: translateX(0); } 
+        }
+        
+        .gradient-box {
+            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .gradient-box-orange {
+            background: linear-gradient(135deg, #ea6317 0%, #f97316 100%);
+            color: white;
+        }
+        
+        .qr-box {
+            background: #fff;
+            padding: 10px;
+            border-radius: 10px;
+            line-height: 0;
+            width: 116px;
+            height: 116px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+        .qr-box-outer {
+            background: #fff;
+            padding: 14px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            width: 140px;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        #qrContainer {
+            width: 96px;
+            height: 96px;
+            line-height: 0;
+            overflow: hidden;
+            position: relative;
+            box-sizing: border-box;
+        }
+        #qrContainer > img,
+        #qrContainer > canvas {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 96px !important;
+            height: 96px !important;
+            max-width: 96px !important;
+            max-height: 96px !important;
+            display: block !important;
+        }
+        #qrContainer > table {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 96px !important;
+            height: 96px !important;
+            max-width: 96px !important;
+            max-height: 96px !important;
+            margin: 0 !important;
+        }
+        /* แบนเนอร์หมวดหมู่: ใช้รูปขนาด 600×400 px (กว้าง×สูง) อัตราส่วน 3:2 */
+        .category-banner-item {
+            cursor: pointer;
+            display: block;
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            margin-bottom: 10px;
+        }
+        .category-banner-item:hover {
+            border-color: var(--primary-color);
+            opacity: 0.95;
+        }
+        .category-banner-item.selected {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.3);
+        }
+        .category-banner-item img {
+            width: 100%;
+            aspect-ratio: 600 / 400;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .guess-input-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .guess-input-row input {
+            flex: 1;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: rgba(15, 23, 42, 0.8);
+            color: white;
+            font-family: 'Kanit', sans-serif;
+        }
+        
+        .guess-input-row input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+            background: rgba(15, 23, 42, 0.9);
+        }
+        
+        .leaderboard-item {
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .score-badge {
+            background: var(--primary-color);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        /* Custom Tailwind-like utilities with tw- prefix */
+        .tw-gap-2 { gap: 8px; }
+        .tw-gap-3 { gap: 12px; }
+        .tw-gap-4 { gap: 16px; }
+        .tw-mb-4 { margin-bottom: 16px; }
+        .tw-mb-3 { margin-bottom: 12px; }
+        .tw-mb-2 { margin-bottom: 8px; }
+        .tw-p-4 { padding: 16px; }
+        .tw-p-3 { padding: 12px; }
+        .tw-p-2 { padding: 8px; }
+        .tw-rounded-lg { border-radius: 8px; }
+        .tw-rounded-xl { border-radius: 12px; }
+        .tw-text-center { text-align: center; }
+        .tw-font-bold { font-weight: 700; }
+        .tw-font-semibold { font-weight: 600; }
+        .tw-font-900 { font-weight: 900; }
+        .tw-text-sm { font-size: 0.875rem; }
+        .tw-text-lg { font-size: 1.125rem; }
+        .tw-text-orange-500 { color: var(--primary-color); }
+        .tw-text-green-500 { color: var(--success-color); }
+        .tw-text-red-500 { color: var(--danger-color); }
+        .tw-shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .tw-hover-scale:hover { transform: scale(1.05); }
+        .tw-transition { transition: all 0.3s ease; }
+        .tw-duration-300 { transition-duration: 0.3s; }
+        .tw-ease-in { transition-timing-function: ease-in; }
+        .tw-cursor-pointer { cursor: pointer; }
+        .tw-flex { display: flex; }
+        .tw-flex-col { flex-direction: column; }
+        .tw-items-center { align-items: center; }
+        .tw-justify-center { justify-content: center; }
+        .tw-justify-between { justify-content: space-between; }
+        .tw-inline-block { display: inline-block; }
+        .tw-backdrop-blur { backdrop-filter: blur(10px); }
+        .tw-bg-gradient-orange { background: linear-gradient(135deg, #ea6317 0%, #f97316 100%); }
+        .tw-bg-gradient-blue { background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); }
+        .tw-border-orange { border-color: var(--primary-color); }
+        .tw-space-y-3 > * + * { margin-top: 12px; }
+        .tw-space-y-4 > * + * { margin-top: 16px; }
+        .tw-max-w-md { max-width: 448px; }
+        .tw-max-w-lg { max-width: 512px; }
+        .tw-w-full { width: 100%; }
+        .category-btn:hover { 
+            background: rgba(249, 115, 22, 0.2) !important; 
+            border-color: var(--primary-color) !important;
+        }
+        .category-btn.selected { 
+            background: rgba(249, 115, 22, 0.3) !important; 
+            border-color: var(--primary-color) !important;
+        }
+        /* ปุ่มเวลา: เมื่อเลือกให้สีเหมือนกัน (ส้ม) */
+        .btn-group-timer input.btn-check:checked + label.btn {
+            background-color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+            color: white !important;
+        }
+        .btn-group-timer label.btn {
+            border-color: rgba(255,255,255,0.3);
+        }
+        html[data-bs-theme="light"] .btn-group-timer label.btn {
+            border-color: #ced4da;
+        }
+    </style>
+</head>
+<body class="bg-dark text-light">
+    <!-- Toast Notification -->
+    <div id="toast" class="toast-custom" style="display: none;"></div>
+
+    <!-- Theme Toggle -->
+    <button class="btn btn-outline-light position-fixed top-3 end-3" style="z-index: 50;" id="themeToggleBtn" onclick="toggleTheme()" aria-label="สลับธีม">
+        <i class="fas fa-moon" id="themeIcon"></i>
+    </button>
+
+    <!-- Main Container -->
+    <div class="container-fluid d-flex align-items-center justify-content-center min-vh-100 py-5">
+        
+        <!-- HOME SCREEN -->
+        <div class="screen active tw-w-full tw-max-w-md" id="screen-home">
+            <div class="tw-mb-4">
+                <div class="logo-container tw-mb-4">
+                    <img src="/logo.png" alt="คำต้องห้าม" style="max-width: 280px; width: 100%; height: auto; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));">
+                </div>
+                <p class="text-center text-muted">เกมทายคำแบบเรียลไทม์ พร้อมเพื่อน</p>
+            </div>
+
+            <div class="card">
+                <div class="card-body tw-p-4 tw-space-y-3">
+                    <button class="btn btn-orange w-100 py-3 fw-bold tw-transition" onclick="goToCreateRoom()">
+                        <i class="fas fa-plus-circle me-2"></i> สร้างห้องใหม่
+                    </button>
+                    <button class="btn btn-secondary w-100 py-3 fw-bold tw-transition tw-hover-scale" onclick="goToJoinRoom()">
+                        <i class="fas fa-sign-in-alt me-2"></i> เข้าร่วมห้อง
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CREATE ROOM SCREEN -->
+        <div class="screen tw-w-full tw-max-w-md" id="screen-create">
+            <div class="logo-container tw-mb-4">
+                <img src="/logo.png" alt="คำต้องห้าม" style="max-width: 300px; width: 100%; height: auto; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));">
+            </div>
+            <div class="card">
+                <div class="card-body tw-p-4">
+                    <h2 class="card-title tw-mb-4">
+                        <i class="fas fa-plus-circle me-2"></i>สร้างห้องใหม่
+                    </h2>
+                    
+                    <div class="tw-mb-4">
+                        <label class="form-label fw-bold">ชื่อของคุณ</label>
+                        <input type="text" class="form-control" id="hostName" placeholder="ใส่ชื่อ..." maxlength="12">
+                    </div>
+                    
+                    <div class="tw-space-y-3">
+                        <button class="btn btn-success w-100 py-2 fw-bold tw-transition" onclick="createRoom()">
+                            <i class="fas fa-check me-2"></i>สร้างห้อง
+                        </button>
+                        <button class="btn btn-secondary w-100 py-2 tw-transition" onclick="goToHome()">
+                            <i class="fas fa-arrow-left me-2"></i>กลับ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- JOIN ROOM SCREEN -->
+        <div class="screen tw-w-full tw-max-w-md" id="screen-join">
+            <div class="logo-container tw-mb-4">
+                <img src="/logo.png" alt="คำต้องห้าม" style="max-width: 300px; width: 100%; height: auto; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));">
+            </div>
+            <div class="card">
+                <div class="card-body tw-p-4">
+                    <h2 class="card-title tw-mb-4">
+                        <i class="fas fa-sign-in-alt me-2"></i>เข้าร่วมห้อง
+                    </h2>
+                    
+                    <div class="tw-mb-4">
+                        <label class="form-label fw-bold">ชื่อของคุณ</label>
+                        <input type="text" class="form-control" id="guestName" placeholder="ใส่ชื่อ..." maxlength="12">
+                    </div>
+                    
+                    <div class="tw-mb-4">
+                        <label class="form-label fw-bold">รหัสห้อง (4 ตัวอักษร)</label>
+                        <input type="text" class="form-control" id="roomCode" placeholder="XXXX" maxlength="4" 
+                            style="text-transform: uppercase; text-align: center; font-size: 24px; letter-spacing: 8px; font-weight: bold;">
+                    </div>
+                    
+                    <div class="tw-space-y-3">
+                        <button class="btn btn-success w-100 py-2 fw-bold tw-transition" onclick="joinRoom()">
+                            <i class="fas fa-check me-2"></i>เข้าร่วม
+                        </button>
+                        <button class="btn btn-secondary w-100 py-2 tw-transition" onclick="goToHome()">
+                            <i class="fas fa-arrow-left me-2"></i>กลับ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOBBY SCREEN (HOST) -->
+        <div class="screen tw-w-full" id="screen-lobby" style="max-width: 900px;">
+            <!-- Card สีส้ม: รหัสห้อง + การ์ดสีขาว (ตัว QR สีดำอยู่ในการ์ดสีขาว) -->
+            <div class="card tw-mb-4 border-0 overflow-hidden">
+                <div class="card-body tw-p-4 gradient-box gradient-box-orange">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div>
+                            <p class="tw-mb-2 fw-bold text-white-50">รหัสห้อง</p>
+                            <p class="fs-1 fw-bold tw-mb-2 text-white" id="displayRoomCode">----</p>
+                            <button class="btn btn-light btn-sm tw-transition tw-hover-scale" onclick="copyRoomCode()">
+                                <i class="fas fa-copy me-2"></i>คัดลอก
+                            </button>
+                        </div>
+                        <div class="qr-box-outer tw-text-center">
+                            <p class="tw-mb-2 fw-bold text-dark">QR เข้าห้อง</p>
+                            <div class="qr-box d-inline-block" id="qrContainer"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card tw-mb-4">
+                <div class="card-body tw-p-4">
+                    <div class="d-flex justify-content-between align-items-center tw-mb-4">
+                        <h2 class="card-title tw-mb-0">
+                            <i class="fas fa-door-open me-2"></i>ห้องเกม
+                        </h2>
+                        <span class="badge bg-success p-2">
+                            <i class="fas fa-circle me-2"></i>ห้องเปิดอยู่
+                        </span>
+                    </div>
+
+                    <!-- Game Settings -->
+                    <h5 class="tw-mb-3">
+                        <i class="fas fa-cog me-2"></i>ตั้งค่าเกม
+                    </h5>
+                    
+                    <div class="tw-mb-4">
+                        <label class="form-label fw-bold tw-mb-2 d-block">หมวดหมู่คำ</label>
+                        <div class="d-flex align-items-center gap-3 flex-wrap">
+                            <button type="button" class="btn btn-orange" onclick="openCategoryModal()">
+                                <i class="fas fa-images me-2"></i>เลือกหมวดหมู่คำ
+                            </button>
+                            <div class="d-flex align-items-center gap-3 flex-wrap">
+                                <span class="text-muted">หมวดที่เลือก:</span>
+                                <div class="selected-category-banner">
+                                    <img id="selectedCategoryImg" src="/cat-party.png" alt="ปาร์ตี้">
+                                    <strong id="selectedCategoryLabel" class="selected-category-name">ปาร์ตี้</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tw-mb-4">
+                        <label class="form-label fw-bold">เวลาต่อรอบ (3 / 5 / 8 นาที)</label>
+                        <div class="btn-group w-100 btn-group-timer" role="group">
+                            <input type="radio" class="btn-check" name="timer" id="timer180" onclick="changeTimer(180)">
+                            <label class="btn btn-outline-secondary" for="timer180">3 นาที</label>
+                            <input type="radio" class="btn-check" name="timer" id="timer300" checked onclick="changeTimer(300)">
+                            <label class="btn btn-outline-secondary" for="timer300">5 นาที</label>
+                            <input type="radio" class="btn-check" name="timer" id="timer480" onclick="changeTimer(480)">
+                            <label class="btn btn-outline-secondary" for="timer480">8 นาที</label>
+                        </div>
+                    </div>
+
+                    <!-- Players List -->
+                    <h5 class="tw-mb-3">
+                        <i class="fas fa-users me-2"></i>ผู้เล่น (<span id="playerCount">1</span>)
+                    </h5>
+                    <div id="playersList" class="tw-mb-4" style="max-height: 300px; overflow-y: auto;"></div>
+
+                    <!-- Action Buttons -->
+                    <div class="tw-space-y-3">
+                        <button class="btn btn-success w-100 py-2 fw-bold tw-transition tw-hover-scale" onclick="startGame()">
+                            <i class="fas fa-play me-2"></i>เริ่มเกม
+                        </button>
+                        <button class="btn btn-danger w-100 py-2 tw-transition tw-hover-scale" onclick="leaveLobby()">
+                            <i class="fas fa-sign-out-alt me-2"></i>ออก
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOBBY SCREEN (GUEST) -->
+        <div class="screen tw-w-full tw-max-w-lg" id="screen-guest-lobby">
+            <div class="logo-container tw-mb-4">
+                <img src="/logo.png" alt="คำต้องห้าม" style="max-width: 300px; width: 100%; height: auto; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));">
+            </div>
+            <div class="card">
+                <div class="card-body tw-p-4">
+                    <h2 class="card-title tw-mb-4">
+                        <i class="fas fa-hourglass-start me-2"></i>รอเริ่มเกม...
+                    </h2>
+                    
+                    <div class="gradient-box tw-mb-4">
+                        <p class="tw-mb-2 fw-bold text-white-50">ห้องที่เข้าร่วม</p>
+                        <p class="fs-1 fw-bold" id="guestRoomCode">----</p>
+                    </div>
+
+                    <h5 class="tw-mb-3">
+                        <i class="fas fa-users me-2"></i>ผู้เล่น (<span id="guestPlayerCount">1</span>)
+                    </h5>
+                    <div id="guestPlayersList" class="tw-mb-4" style="max-height: 300px; overflow-y: auto;"></div>
+
+                    <div class="alert alert-warning tw-mb-4" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>รอให้เจ้าของห้องกด "เริ่มเกม"
+                    </div>
+
+                    <button class="btn btn-danger w-100 py-2 tw-transition tw-hover-scale" onclick="leaveLobby()">
+                        <i class="fas fa-sign-out-alt me-2"></i>ออก
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GAME SCREEN -->
+        <div class="screen tw-w-full" id="screen-game" style="max-width: 1200px;">
+            <div class="row g-4">
+                <!-- Main Game Area -->
+                <div class="col-12">
+                    <!-- Timer -->
+                    <div class="card tw-mb-4">
+                        <div class="card-body tw-p-4 tw-text-center">
+                            <div class="timer-display tw-mb-3">
+                                <span id="timerText">60</span>
+                            </div>
+                            <p id="roundText" class="text-muted tw-mb-0">รอบที่ 1</p>
+                        </div>
+                    </div>
+
+                    <!-- Words Grid (ไม่ให้คำล้นออกจาก card หลัก) -->
+                    <div class="card tw-mb-4 overflow-hidden">
+                        <div class="card-body tw-p-4">
+                            <h5 class="tw-mb-3">
+                                <i class="fas fa-align-justify me-2"></i>คำบนหัวของทุกคน
+                            </h5>
+                            <div id="wordsGrid" class="row g-3 overflow-hidden"></div>
+                        </div>
+                    </div>
+
+                    <!-- Host Controls -->
+                    <div id="hostControls" style="display: none;" class="tw-mb-4">
+                        <button id="endRoundBtn" class="btn btn-danger w-100 py-3 fw-bold tw-transition tw-hover-scale" onclick="endRound()" disabled>
+                            <i class="fas fa-stop-circle me-2"></i><span id="endRoundBtnText">รอทุกคนทายครบ (0/0)</span>
+                        </button>
+                        <p class="text-muted small tw-mb-0 mt-1">กดได้เมื่อทุกคนทายคำของตัวเองครบ หรือเมื่อหมดเวลา</p>
+                    </div>
+
+                    <!-- Leave Button -->
+                    <button class="btn btn-secondary w-100 py-2 tw-transition tw-hover-scale" onclick="leaveGame()">
+                        <i class="fas fa-sign-out-alt me-2"></i>ออกจากเกม
+                    </button>
+                </div>
+
+                <!-- Sidebar (ไม่แสดงคะแนน) -->
+                <div class="col-lg-4" style="display: none;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal เลือกหมวดหมู่คำ: เรียงลงมาแบบแบนเนอร์ (รูป 600×400 px) -->
+    <div class="modal fade" id="categoryModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-images me-2"></i>เลือกหมวดหมู่คำ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <p class="text-muted small tw-mb-3">กดที่แบนเนอร์หมวดที่ต้องการ (ขนาดรูป 600×400 พิกเซล)</p>
+                    <div id="categoryModalGrid" class="row g-3">
+                        <div class="col-6">
+                            <div class="category-banner-item category-modal-item" data-value="ปาร์ตี้" onclick="selectCategoryFromModal('ปาร์ตี้')">
+                                <img src="/cat-party.png" alt="ปาร์ตี้">
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="category-banner-item category-modal-item" data-value="ออฟฟิศ" onclick="selectCategoryFromModal('ออฟฟิศ')">
+                                <img src="/cat-office.png" alt="ออฟฟิศ">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guessing Modal -->
+    <div class="modal fade" id="guessingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header tw-border-0">
+                    <h5 class="modal-title">
+                        <i class="fas fa-bullseye me-2"></i>ลองทายคำบนหัว!
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <div id="guessingCards"></div>
+                </div>
+                <div class="modal-footer tw-border-0">
+                    <button type="button" class="btn btn-secondary" id="closeGuessingBtn" style="display: none;" onclick="closeGuessingModal()">
+                        <i class="fas fa-times me-2"></i>ปิด
+                    </button>
+                    <button type="button" class="btn btn-danger" id="hostEndRoundModalBtn" style="display: none;" onclick="endRoundFromModal()">
+                        <i class="fas fa-stop-circle me-2"></i>สิ้นสุดรอบ / เฉลยคำ
+                    </button>
+                    <button type="button" class="btn btn-success" id="hostNextBtn" style="display: none;" onclick="nextRound()">
+                        <i class="fas fa-redo me-2"></i>รอบถัดไป
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const socket = io();
+        let guessingModalInstance = null;
+        let categoryModalInstance = null;
+
+        // เสียงเอฟเฟกต์ (Web Audio API - ไม่ต้องโหลดไฟล์)
+        let audioCtx = null;
+        function getAudioCtx() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            return audioCtx;
+        }
+        function playSound(type) {
+            try {
+                const ctx = getAudioCtx();
+                const now = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (type === 'click') {
+                    osc.frequency.setValueAtTime(680, now);
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+                    osc.start(now);
+                    osc.stop(now + 0.04);
+                } else if (type === 'start') {
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.setValueAtTime(554, now + 0.06);
+                    osc.frequency.setValueAtTime(659, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                } else if (type === 'correct') {
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.18, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'end') {
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.frequency.setValueAtTime(392, now);
+                    osc.frequency.setValueAtTime(330, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                }
+            } catch (e) { /* เบราว์เซอร์ปิดเสียงหรือไม่รองรับ */ }
+        }
+
+        let gameState = {
+            myId: null,
+            myName: '',
+            roomId: '',
+            isHost: false,
+            players: [],
+            playerNames: {},
+            scores: {},
+            gameState: 'lobby',
+            roundNum: 0,
+            selectedCat: 'ปาร์ตี้',
+            timerSecs: 300,
+            words: {},
+            guessResults: {},
+            guessSubmitted: {},
+            timeUp: false
+        };
+
+        let timerInterval = null;
+        let timerRemaining = 0;
+
+        // UI Navigation
+        function goToHome() { playSound('click'); showScreen('home'); }
+        function goToCreateRoom() { playSound('click'); showScreen('create'); }
+        function goToJoinRoom() { playSound('click'); showScreen('join'); }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(`screen-${screenId}`).classList.add('active');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+
+        function toggleTheme() {
+            playSound('click');
+            const html = document.documentElement;
+            const isDark = html.getAttribute('data-bs-theme') === 'dark';
+            const newTheme = isDark ? 'light' : 'dark';
+            html.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+            showToast(isDark ? '☀️ ธีมสว่าง' : '🌙 ธีมมืด');
+        }
+        function updateThemeIcon(theme) {
+            const icon = document.getElementById('themeIcon');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+            }
+        }
+        function initTheme() {
+            const saved = localStorage.getItem('theme');
+            const html = document.documentElement;
+            if (saved === 'light' || saved === 'dark') {
+                html.setAttribute('data-bs-theme', saved);
+            }
+            updateThemeIcon(html.getAttribute('data-bs-theme') || 'dark');
+        }
+        
+        function openCategoryModal() {
+            playSound('click');
+            if (!categoryModalInstance) {
+                categoryModalInstance = new bootstrap.Modal(document.getElementById('categoryModal'));
+            }
+            syncCategorySelection();
+            categoryModalInstance.show();
+        }
+        function selectCategoryFromModal(cat) {
+            playSound('click');
+            gameState.selectedCat = cat;
+            socket.emit('change-category', { category: cat });
+            syncCategorySelection();
+            if (categoryModalInstance) categoryModalInstance.hide();
+            showToast('✅ เลือก: ' + cat);
+        }
+        function selectCategory(cat) {
+            gameState.selectedCat = cat;
+            socket.emit('change-category', { category: cat });
+            syncCategorySelection();
+            showToast('✅ เลือก: ' + cat);
+        }
+
+        function createRoom() {
+            playSound('click');
+            const name = document.getElementById('hostName').value.trim();
+            if (!name) { showToast('⚠️ ใส่ชื่อก่อนนะ!'); return; }
+
+            gameState.myName = name;
+            gameState.roomId = generateRoomCode();
+            gameState.isHost = true;
+            gameState.players = [];
+            gameState.playerNames = {};
+
+            socket.emit('join-room', {
+                roomId: gameState.roomId,
+                playerName: name,
+                selectedCat: gameState.selectedCat,
+                timerSecs: gameState.timerSecs
+            });
+
+            showLobbyHost();
+            showToast('✅ สร้างห้องสำเร็จ!');
+        }
+
+        let pendingJoinRoom = false;
+        function joinRoom() {
+            playSound('click');
+            const name = document.getElementById('guestName').value.trim();
+            const code = document.getElementById('roomCode').value.trim().toUpperCase();
+            if (!name) { showToast('⚠️ ใส่ชื่อก่อนนะ!'); return; }
+            if (code.length !== 4) { showToast('⚠️ รหัส 4 ตัวอักษร!'); return; }
+
+            gameState.myName = name;
+            gameState.roomId = code;
+            gameState.isHost = false;
+            pendingJoinRoom = true;
+
+            socket.emit('join-room', {
+                roomId: code,
+                playerName: name
+            });
+        }
+
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+            return code;
+        }
+
+        function showLobbyHost() {
+            document.getElementById('displayRoomCode').textContent = gameState.roomId;
+            buildQR();
+            syncCategorySelection();
+            syncTimerSelection();
+            updatePlayersList();
+            showScreen('lobby');
+        }
+        const CATEGORY_IMAGES = { 'ปาร์ตี้': '/cat-party.png', 'ออฟฟิศ': '/cat-office.png' };
+        function syncCategorySelection() {
+            const cat = gameState.selectedCat || 'ปาร์ตี้';
+            const label = document.getElementById('selectedCategoryLabel');
+            const img = document.getElementById('selectedCategoryImg');
+            if (label) label.textContent = cat;
+            if (img && CATEGORY_IMAGES[cat]) {
+                img.src = CATEGORY_IMAGES[cat];
+                img.alt = cat;
+            }
+            document.querySelectorAll('.category-modal-item').forEach(el => {
+                el.classList.toggle('selected', el.getAttribute('data-value') === cat);
+            });
+        }
+        function syncTimerSelection() {
+            const t180 = document.getElementById('timer180');
+            if (!t180) return;
+            const secs = gameState.timerSecs;
+            t180.checked = (secs === 180);
+            document.getElementById('timer300').checked = (secs === 300);
+            document.getElementById('timer480').checked = (secs === 480);
+        }
+
+        function showLobbyGuest() {
+            document.getElementById('guestRoomCode').textContent = gameState.roomId;
+            updateGuestPlayersList();
+            showScreen('guest-lobby');
+        }
+
+        function buildQR() {
+            const container = document.getElementById('qrContainer');
+            container.innerHTML = '';
+            new QRCode(container, {
+                text: window.location.href.split('?')[0] + '?room=' + gameState.roomId,
+                width: 96,
+                height: 96,
+                colorDark: '#000000',
+                colorLight: '#ffffff'
+            });
+        }
+
+        function copyRoomCode() {
+            playSound('click');
+            navigator.clipboard.writeText(gameState.roomId);
+            showToast('📋 คัดลอก: ' + gameState.roomId);
+        }
+
+        function changeTimer(secs) {
+            playSound('click');
+            gameState.timerSecs = secs;
+            socket.emit('change-timer', { timerSecs: secs });
+        }
+
+        function updatePlayersList() {
+            const list = document.getElementById('playersList');
+            document.getElementById('playerCount').textContent = gameState.players.length;
+            list.innerHTML = gameState.players.map(pid => `
+                <div class="card card-body tw-p-2 tw-mb-2" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle bg-primary tw-p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-user text-white"></i>
+                        </div>
+                        <span class="flex-grow-1">${gameState.playerNames[pid]}${pid === gameState.myId ? ' <small class="text-muted">(คุณ)</small>' : ''}</span>
+                        <span class="badge bg-success"><i class="fas fa-check"></i></span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateGuestPlayersList() {
+            const list = document.getElementById('guestPlayersList');
+            document.getElementById('guestPlayerCount').textContent = gameState.players.length;
+            list.innerHTML = gameState.players.map(pid => `
+                <div class="card card-body tw-p-2 tw-mb-2" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle bg-primary tw-p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-user text-white"></i>
+                        </div>
+                        <span>${gameState.playerNames[pid]}${pid === gameState.myId ? ' <small class="text-muted">(คุณ)</small>' : ''}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function startGame() {
+            playSound('click');
+            if (gameState.players.length < 2) {
+                showToast('⚠️ ต้องมี 2+ คน!');
+                return;
+            }
+            playSound('start');
+            socket.emit('start-game');
+        }
+
+        function renderGameScreen() {
+            document.getElementById('hostControls').style.display = gameState.isHost ? 'block' : 'none';
+
+            const grid = document.getElementById('wordsGrid');
+            grid.innerHTML = gameState.players.map(pid => {
+                const isMe = pid === gameState.myId;
+                const word = isMe ? '' : (gameState.words[pid] || '');
+                const displayWord = isMe ? 'คำของฉัน (ห้ามดู)' : (word || '?');
+                return `
+                    <div class="col-md-6 col-lg-4">
+                        <div class="word-card-wrapper ${isMe ? 'mine' : ''}">
+                            <div class="word-card">
+                                <h4 class="tw-mb-0 word-text">${displayWord}</h4>
+                            </div>
+                            <div class="word-card-footer">
+                                <i class="fas fa-user"></i>
+                                <span class="word-label">${gameState.playerNames[pid] || '?'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            updateScoresDisplay();
+            showScreen('game');
+        }
+
+        function updateScoresDisplay() {
+            // ไม่แสดงคะแนน
+        }
+
+        function endRound() { playSound('end'); socket.emit('end-round', { timeUp: gameState.timeUp === true }); }
+        function endRoundFromModal() { playSound('end'); socket.emit('end-round', { timeUp: gameState.timeUp === true }); }
+        function updateEndRoundButton() {
+            const btn = document.getElementById('endRoundBtn');
+            const text = document.getElementById('endRoundBtnText');
+            if (!btn || !text) return;
+            const n = gameState.players.length;
+            const count = gameState.players.filter(pid => gameState.guessSubmitted[pid]).length;
+            const allDone = gameState.allHaveGuessed === true;
+            const canEnd = allDone || gameState.timeUp === true;
+            btn.disabled = !canEnd;
+            if (gameState.timeUp && !allDone)
+                text.textContent = `หมดเวลา - สิ้นสุดรอบ (${count}/${n} ทายแล้ว)`;
+            else
+                text.textContent = allDone ? 'สิ้นสุดรอบ / เริ่มทาย' : `รอทุกคนทายครบ (${count}/${n})`;
+        }
+
+        function renderGuessingScreen() {
+            const container = document.getElementById('guessingCards');
+            const isRevealPhase = gameState.revealPhase === true;
+
+            container.innerHTML = gameState.players.map(targetPid => {
+                const isMe = targetPid === gameState.myId;
+                const actualWord = gameState.words[targetPid];
+
+                // --- ช่วงเฉลย (หลัง Host กด สิ้นสุดรอบ) ---
+                if (isRevealPhase) {
+                    const label = isMe ? 'คำบนหัวของฉัน' : gameState.playerNames[targetPid];
+                    return `
+                        <div class="card tw-mb-3" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                            <div class="card-body">
+                                <p class="card-title fw-bold tw-mb-2">${label}</p>
+                                <p class="tw-mb-0"><strong>${actualWord || '?'}</strong></p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // --- ช่วงทาย (ก่อนโฮสต์กดสิ้นสุดรอบ) ---
+                if (isMe) {
+                    const myResult = gameState.guessResults[`${gameState.myId}_${gameState.myId}`];
+                    if (myResult) {
+                        // ทายแล้ว — แสดง pending
+                        return `
+                            <div class="card tw-mb-3 border-warning" style="background: rgba(249, 115, 22, 0.1);">
+                                <div class="card-body">
+                                    <p class="card-title fw-bold tw-mb-1">ทายคำบนหัวของตัวเอง</p>
+                                    <p class="text-muted tw-mb-0">✔ ส่งคำทายแล้ว รอโฮสต์สิ้นสุดรอบ...</p>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    return `
+                        <div class="card tw-mb-3 border-warning" style="background: rgba(249, 115, 22, 0.1);">
+                            <div class="card-body">
+                                <p class="card-title fw-bold tw-mb-3">ทายคำบนหัวของตัวเอง</p>
+                                <div class="guess-input-row">
+                                    <input type="text" id="guess-input" placeholder="ทายคำ..." class="form-control">
+                                    <button type="button" id="guess-btn" class="btn btn-orange tw-transition tw-hover-scale" onclick="submitGuess('${targetPid}')"><i class="fas fa-paper-plane"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="card tw-mb-3" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); opacity: 0.6;">
+                        <div class="card-body">
+                            <small class="text-muted">รอให้ ${gameState.playerNames[targetPid]} ทาย...</small>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // ปุ่ม modal footer
+            const hostNextBtn = document.getElementById('hostNextBtn');
+            const closeGuessingBtn = document.getElementById('closeGuessingBtn');
+            const hostEndBtn = document.getElementById('hostEndRoundModalBtn');
+            if (isRevealPhase) {
+                if (hostNextBtn) hostNextBtn.style.display = gameState.isHost ? 'block' : 'none';
+                if (closeGuessingBtn) closeGuessingBtn.style.display = !gameState.isHost ? 'block' : 'none';
+                if (hostEndBtn) hostEndBtn.style.display = 'none';
+            } else {
+                if (hostNextBtn) hostNextBtn.style.display = 'none';
+                if (closeGuessingBtn) closeGuessingBtn.style.display = 'none';
+                if (hostEndBtn) hostEndBtn.style.display = gameState.isHost ? 'block' : 'none';
+            }
+
+            if (!guessingModalInstance) {
+                guessingModalInstance = new bootstrap.Modal(document.getElementById('guessingModal'), { backdrop: 'static', keyboard: false });
+            }
+            const modalEl = document.getElementById('guessingModal');
+            if (modalEl && !modalEl.classList.contains('show')) {
+                guessingModalInstance.show();
+            }
+        }
+
+        function submitGuess(targetPid) {
+            playSound('click');
+            const input = document.getElementById('guess-input');
+            if (!input || input.disabled) return; // ป้องกันกดซ้ำ
+            const btn = document.getElementById('guess-btn');
+            const guess = input.value.trim();
+            if (!guess) { showToast('⚠️ ใส่คำทายด้วย!'); return; }
+
+            socket.emit('submit-guess', { targetPlayerId: targetPid, guess });
+            input.value = '';
+            input.disabled = true;
+            if (btn) btn.disabled = true;
+        }
+
+        function nextRound() {
+            playSound('click');
+            if (guessingModalInstance) guessingModalInstance.hide();
+            socket.emit('next-round');
+        }
+
+        function closeGuessingModal() {
+            playSound('click');
+            if (guessingModalInstance) guessingModalInstance.hide();
+        }
+
+        function leaveLobby() {
+            playSound('click');
+            socket.emit('leave-room');
+            stopTimer();
+            gameState = { myId: null, myName: '', roomId: '', isHost: false, players: [], playerNames: {}, scores: {}, gameState: 'lobby', roundNum: 0 };
+            goToHome();
+            showToast('👋 ออกจากห้องแล้ว');
+        }
+
+        function leaveGame() {
+            playSound('click');
+            socket.emit('leave-room');
+            stopTimer();
+            closeGuessingModal();
+            gameState = { myId: null, myName: '', roomId: '', isHost: false, players: [], playerNames: {}, scores: {}, gameState: 'lobby', roundNum: 0 };
+            goToHome();
+            showToast('👋 ออกจากเกมแล้ว');
+        }
+
+        function formatTimer(secs) {
+            const m = Math.floor(secs / 60);
+            const s = secs % 60;
+            return m + ':' + (s < 10 ? '0' : '') + s;
+        }
+        function startTimer(seconds, startTime) {
+            stopTimer();
+            const endAt = startTime ? startTime + seconds * 1000 : (Date.now() + seconds * 1000);
+            function tick() {
+                const now = Date.now();
+                timerRemaining = Math.max(0, Math.ceil((endAt - now) / 1000));
+                document.getElementById('timerText').textContent = formatTimer(timerRemaining);
+                const elapsed = seconds - timerRemaining;
+                const progress = (elapsed / seconds) * 100;
+                const disp = document.querySelector('.timer-display');
+                if (disp) disp.style.setProperty('--progress', progress + '%');
+                if (timerRemaining <= 0) {
+                    playSound('end');
+                    stopTimer();
+                    gameState.timeUp = true;
+                    updateEndRoundButton();
+                }
+            }
+            tick();
+            timerInterval = setInterval(tick, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+        }
+
+        // Socket Events
+        socket.on('your-player-id', (id) => {
+            gameState.myId = id;
+            if (gameState.isHost) updatePlayersList();
+            else updateGuestPlayersList();
+        });
+
+        socket.on('join-error', (data) => {
+            pendingJoinRoom = false;
+            showToast(data && data.message ? data.message : '⚠️ ไม่พบห้องนี้');
+        });
+
+        socket.on('room-updated', (data) => {
+            if (data.isHost !== undefined) gameState.isHost = data.isHost;
+
+            if (data.players && Array.isArray(data.players)) {
+                gameState.players = data.players.map(p => p.id);
+                data.players.forEach(p => {
+                    gameState.playerNames[p.id] = p.name;
+                    gameState.scores[p.id] = gameState.scores[p.id] || { correct: 0, wrong: 0, total: 0 };
+                });
+                if (gameState.isHost) updatePlayersList();
+                else {
+                    updateGuestPlayersList();
+                    if (pendingJoinRoom) {
+                        pendingJoinRoom = false;
+                        showLobbyGuest();
+                        showToast('✅ เข้าห้องสำเร็จ!');
+                    }
+                }
+            }
+
+            if (data.selectedCat) gameState.selectedCat = data.selectedCat;
+            if (data.timerSecs) gameState.timerSecs = data.timerSecs;
+            if (data.roundNum !== undefined) gameState.roundNum = data.roundNum;
+            if (gameState.isHost) {
+                syncCategorySelection();
+                syncTimerSelection();
+            }
+        });
+
+        socket.on('game-started', (data) => {
+            gameState.roundNum = data.roundNum;
+            gameState.timerSecs = data.timerSecs;
+            gameState.gameState = 'playing';
+            gameState.revealPhase = false; // reset ทุกรอบ
+            gameState.words = {};
+            gameState.guessResults = {};
+            gameState.guessSubmitted = {};
+            gameState.allHaveGuessed = false;
+            gameState.timeUp = false;
+
+            if (data.playerWords && Array.isArray(data.playerWords)) {
+                data.playerWords.forEach(pw => {
+                    if (pw.playerId !== gameState.myId) {
+                        gameState.words[pw.playerId] = pw.word;
+                    }
+                });
+            }
+
+            document.getElementById('roundText').textContent = `รอบที่ ${data.roundNum}`;
+            renderGameScreen();
+            updateEndRoundButton();
+            closeGuessingModal();
+            startTimer(data.timerSecs, data.startTime);
+        });
+
+        socket.on('round-ended', (data) => {
+            stopTimer();
+            playSound('end');
+            gameState.revealPhase = true;
+            gameState.guessResults = data.guessResults || {};
+            if (data.correctAnswers && Array.isArray(data.correctAnswers)) {
+                data.correctAnswers.forEach(ca => {
+                    gameState.words[ca.playerId] = ca.word; // เก็บทุกคน รวมตัวเอง
+                });
+            }
+            if (data.scores) gameState.scores = data.scores;
+            renderGuessingScreen();
+        });
+
+        socket.on('guess-received', (data) => {
+            if (data.guessResult.correct && data.guessResult.guesserId === gameState.myId) playSound('correct');
+            if (data.guessResult.guesserId === data.guessResult.targetPlayerId)
+                gameState.guessSubmitted[data.guessResult.guesserId] = true;
+            if (data.guessResult.guesserId === gameState.myId || data.guessResult.targetPlayerId === gameState.myId) {
+                gameState.guessResults[data.resultKey] = data.guessResult;
+                renderGuessingScreen(); // re-render เฉพาะถ้าเกี่ยวกับเรา
+            }
+            if (data.scores) gameState.scores = data.scores;
+            if (data.allHaveGuessed !== undefined) gameState.allHaveGuessed = data.allHaveGuessed;
+            updateScoresDisplay();
+            updateEndRoundButton();
+            // เปิด modal ให้ทายคำตัวเองทันทีที่ทุกคนทาย (ยังไม่ reveal)
+            if (data.allHaveGuessed && !gameState.revealPhase) {
+                gameState.revealPhase = false;
+                renderGuessingScreen();
+            }
+        });
+
+        socket.on('player-left', (data) => {
+            if (data.players && Array.isArray(data.players)) {
+                gameState.players = data.players.map(p => p.id);
+                data.players.forEach(p => { gameState.playerNames[p.id] = p.name; });
+            }
+            if (data.scores) gameState.scores = data.scores;
+
+            if (gameState.isHost) updatePlayersList();
+            else updateGuestPlayersList();
+
+            showToast(`👋 ${data.playerName} ออก`);
+        });
+
+        socket.on('host-changed', (data) => {
+            if (data.newHostId === gameState.myId) {
+                gameState.isHost = true;
+                showToast('👑 คุณเป็นเจ้าของห้องแล้ว!');
+            }
+        });
+
+        socket.on('host-left-room', (data) => {
+            stopTimer();
+            closeGuessingModal();
+            socket.emit('leave-room');
+            gameState.roomId = '';
+            gameState.isHost = false;
+            gameState.players = [];
+            gameState.playerNames = {};
+            gameState.gameState = 'lobby';
+            showScreen('home');
+            showToast(data.message || 'เจ้าของห้องออกจากห้องแล้ว');
+        });
+
+        // โหลดธีม + auto-fill room จาก URL (รอ DOM พร้อม)
+        document.addEventListener('DOMContentLoaded', function() {
+            initTheme();
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomCode = urlParams.get('room');
+            if (roomCode) {
+                const el = document.getElementById('roomCode');
+                if (el) { el.value = roomCode; goToJoinRoom(); }
+            }
+        });
+    </script>
+</body>
+</html>
