@@ -536,7 +536,7 @@
 </head>
 <body class="bg-dark text-light">
     <!-- Loading: ใส่ไฟล์วิดีโอที่ public/loading.mp4 (ถ้าไม่มีจะแสดง spinner แทน) -->
-    <div id="loadingOverlay" class="hidden" style="display:none;">
+    <div id="loadingOverlay">
         <div id="loadingVideoWrap">
             <video id="loadingVideo" autoplay muted loop playsinline preload="auto" onerror="this.parentElement.parentElement.classList.add('video-failed')">
                 <source src="/loading.mp4" type="video/mp4">
@@ -1550,7 +1550,69 @@
             showToast(data.message || 'เจ้าของห้องออกจากห้องแล้ว');
         });
 
-        // โหลดธีม + auto-fill room จาก URL (รอ DOM พร้อม)
+        // ผู้เล่นคนนี้ใช้ครบทุกคำในหมวด แล้วระบบรีเซ็ตคำใหม่ให้
+        socket.on('words-reset', (data) => {
+            showResetPopup(data && data.message
+                ? data.message
+                : 'คุณเล่นครบทุกคำแล้ว! ระบบจะทำการรีเซ็ตคำใหม่ทั้งหมดให้คุณ');
+        });
+
+        function showResetPopup(message) {
+            const overlay = document.createElement('div');
+            overlay.classList.add('reset-overlay');
+            overlay.style.cssText = [
+                'position: fixed',
+                'inset: 0',
+                'background: rgba(0,0,0,0.6)',
+                'display: flex',
+                'align-items: center',
+                'justify-content: center',
+                'z-index: 9999'
+            ].join('; ');
+
+            const box = document.createElement('div');
+            box.style.cssText = [
+                'background: white',
+                'border-radius: 16px',
+                'padding: 32px 24px',
+                'max-width: 320px',
+                'width: 90%',
+                'text-align: center',
+                'box-shadow: 0 8px 32px rgba(0,0,0,0.3)'
+            ].join('; ');
+
+            box.innerHTML = `
+                <div style="font-size: 48px; margin-bottom: 12px;">🎉</div>
+                <h3 style="margin: 0 0 12px; font-size: 20px; color: #1a1a1a;">เล่นครบทุกคำแล้ว!</h3>
+                <p style="margin: 0 0 24px; color: #555; line-height: 1.5;">${message}</p>
+                <button type="button" style="
+                    background: #6c47ff;
+                    color: white;
+                    border: none;
+                    padding: 12px 32px;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    cursor: pointer;
+                    width: 100%;
+                ">รับทราบ</button>
+            `;
+
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+
+            // ปุ่มรับทราบ
+            const btn = box.querySelector('button');
+            if (btn) {
+                btn.addEventListener('click', () => overlay.remove());
+            }
+
+            // กดด้านนอกกล่องเพื่อปิดได้
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) overlay.remove();
+            });
+        }
+
+        // โหลดธีม + auto-fill room จาก URL (รอ DOM พร้อม) + ซ่อนหน้า loading หลังโหลดเสร็จ
         document.addEventListener('DOMContentLoaded', function() {
             initTheme();
             const urlParams = new URLSearchParams(window.location.search);
@@ -1559,6 +1621,8 @@
                 const el = document.getElementById('roomCode');
                 if (el) { el.value = roomCode; goToJoinRoom(); }
             }
+            // ซ่อนหน้า loading หลังจาก DOM พร้อมแล้วเล็กน้อย (เวลาสั้น ๆ เวลารีเฟรช)
+            setTimeout(hideLoading, 1800);
         });
     </script>
 </body>
