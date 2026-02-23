@@ -471,9 +471,86 @@
         html[data-bs-theme="light"] .btn-group-timer label.btn {
             border-color: #ced4da;
         }
+
+        /* Loading overlay — พื้นหลังสีทึบ, วิดีโอพื้นดำ = โปร่งใส (mix-blend-mode: screen) */
+        #loadingOverlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #0f172a;
+            transition: opacity 0.3s ease;
+            pointer-events: auto;
+            isolation: isolate;
+        }
+        #loadingOverlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #loadingVideoWrap {
+            max-width: 90vw;
+            max-height: 50vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        @media (min-width: 768px) {
+            #loadingVideoWrap { max-width: 320px; max-height: 320px; }
+        }
+        #loadingVideoWrap video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            mix-blend-mode: screen;
+        }
+        #loadingBarWrap {
+            width: 80%;
+            max-width: 280px;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            margin-top: 1.5rem;
+            overflow: hidden;
+        }
+        #loadingBar {
+            height: 100%;
+            width: 30%;
+            background: var(--primary-color);
+            border-radius: 2px;
+            animation: loading-bar 1.2s ease-in-out infinite;
+        }
+        @keyframes loading-bar {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+        }
+        #loadingFallback { display: none; text-align: center; color: #fff; }
+        #loadingOverlay.video-failed #loadingVideoWrap,
+        #loadingOverlay.video-failed #loadingBarWrap { display: none; }
+        #loadingOverlay.video-failed #loadingFallback { display: block; }
+        .loading-spinner { width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.2); border-top-color: var(--primary-color); border-radius: 50%; animation: loading-spin 0.8s linear infinite; margin: 0 auto 1rem; }
+        @keyframes loading-spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-dark text-light">
+    <!-- Loading: ใส่ไฟล์วิดีโอที่ public/loading.mp4 (ถ้าไม่มีจะแสดง spinner แทน) -->
+    <div id="loadingOverlay" class="hidden" style="display:none;">
+        <div id="loadingVideoWrap">
+            <video id="loadingVideo" autoplay muted loop playsinline preload="auto" onerror="this.parentElement.parentElement.classList.add('video-failed')">
+                <source src="/loading.mp4" type="video/mp4">
+            </video>
+        </div>
+        <div id="loadingBarWrap">
+            <div id="loadingBar"></div>
+        </div>
+        <div id="loadingFallback">
+            <div class="loading-spinner"></div>
+            <div>กำลังโหลด...</div>
+        </div>
+    </div>
+
     <!-- Toast Notification -->
     <div id="toast" class="toast-custom" style="display: none;"></div>
 
@@ -711,10 +788,10 @@
 
                     <!-- Host Controls -->
                     <div id="hostControls" style="display: none;" class="tw-mb-4">
-                        <button id="endRoundBtn" class="btn btn-danger w-100 py-3 fw-bold tw-transition tw-hover-scale" onclick="endRound()" disabled>
-                            <i class="fas fa-stop-circle me-2"></i><span id="endRoundBtnText">รอทุกคนทายครบ (0/0)</span>
+                        <button id="endRoundBtn" class="btn btn-danger w-100 py-3 fw-bold tw-transition tw-hover-scale" onclick="showConfirmEndRound()">
+                            <i class="fas fa-stop-circle me-2"></i><span id="endRoundBtnText">สิ้นสุดรอบ / เฉลยคำ</span>
                         </button>
-                        <p class="text-muted small tw-mb-0 mt-1">กดได้เมื่อทุกคนทายคำของตัวเองครบ หรือเมื่อหมดเวลา</p>
+                        <p class="text-muted small tw-mb-0 mt-1">กดเพื่อสิ้นสุดรอบและเฉลยคำ (จะมี popup ยืนยัน)</p>
                     </div>
 
                     <!-- Leave Button -->
@@ -739,7 +816,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
                 </div>
                 <div class="modal-body py-3">
-                    <p class="text-muted small tw-mb-3">กดที่แบนเนอร์หมวดที่ต้องการ (ขนาดรูป 600×400 พิกเซล)</p>
+                    <p class="text-muted small tw-mb-3">กดที่แบนเนอร์หมวดที่ต้องการ</p>
                     <div id="categoryModalGrid" class="row g-3">
                         <div class="col-6">
                             <div class="category-banner-item category-modal-item" data-value="ปาร์ตี้" onclick="selectCategoryFromModal('ปาร์ตี้')">
@@ -773,11 +850,34 @@
                     <button type="button" class="btn btn-secondary" id="closeGuessingBtn" style="display: none;" onclick="closeGuessingModal()">
                         <i class="fas fa-times me-2"></i>ปิด
                     </button>
-                    <button type="button" class="btn btn-danger" id="hostEndRoundModalBtn" style="display: none;" onclick="endRoundFromModal()">
+                    <button type="button" class="btn btn-danger" id="hostEndRoundModalBtn" style="display: none;" onclick="showConfirmEndRound()">
                         <i class="fas fa-stop-circle me-2"></i>สิ้นสุดรอบ / เฉลยคำ
                     </button>
                     <button type="button" class="btn btn-success" id="hostNextBtn" style="display: none;" onclick="nextRound()">
                         <i class="fas fa-redo me-2"></i>รอบถัดไป
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal ยืนยันสิ้นสุดรอบ -->
+    <div class="modal fade" id="confirmEndRoundModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-question-circle me-2"></i>ยืนยันสิ้นสุดรอบ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+                </div>
+                <div class="modal-body">
+                    คุณต้องการสิ้นสุดรอบและเฉลยคำตอนนี้ใช่ไหม? (บางคนอาจยังทายไม่ครบ)
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>ยกเลิก
+                    </button>
+                    <button type="button" class="btn btn-danger" id="confirmEndRoundBtn" onclick="doEndRound()">
+                        <i class="fas fa-check me-2"></i>ยืนยัน
                     </button>
                 </div>
             </div>
@@ -790,6 +890,7 @@
         const socket = io();
         let guessingModalInstance = null;
         let categoryModalInstance = null;
+        let confirmEndRoundModalInstance = null;
 
         // เสียงเอฟเฟกต์ (Web Audio API - ไม่ต้องโหลดไฟล์)
         let audioCtx = null;
@@ -863,6 +964,25 @@
         let timerInterval = null;
         let timerRemaining = 0;
 
+        // Loading overlay (วิดีโอพื้นดำ = โปร่งใส จาก mix-blend-mode: screen)
+        function showLoading() {
+            const el = document.getElementById('loadingOverlay');
+            if (el) { el.classList.remove('hidden'); el.style.display = 'flex'; }
+            const vid = document.getElementById('loadingVideo');
+            if (vid) {
+                try { vid.currentTime = 0; } catch (e) {}
+                vid.play().catch(() => {});
+            }
+        }
+        function hideLoading() {
+            const el = document.getElementById('loadingOverlay');
+            if (!el) return;
+            el.classList.add('hidden');
+            const vid = document.getElementById('loadingVideo');
+            if (vid) { vid.pause(); vid.onended = null; }
+            setTimeout(() => { el.style.display = 'none'; }, 150);
+        }
+
         // UI Navigation
         function goToHome() { playSound('click'); showScreen('home'); }
         function goToCreateRoom() { playSound('click'); showScreen('create'); }
@@ -933,11 +1053,13 @@
             const name = document.getElementById('hostName').value.trim();
             if (!name) { showToast('⚠️ ใส่ชื่อก่อนนะ!'); return; }
 
+            showLoading();
             gameState.myName = name;
             gameState.roomId = generateRoomCode();
             gameState.isHost = true;
             gameState.players = [];
             gameState.playerNames = {};
+            gameState.myId = null; // reset เพื่อรอ your-player-id ใหม่
 
             socket.emit('join-room', {
                 roomId: gameState.roomId,
@@ -948,6 +1070,7 @@
 
             showLobbyHost();
             showToast('✅ สร้างห้องสำเร็จ!');
+            setTimeout(hideLoading, 1800);
         }
 
         let pendingJoinRoom = false;
@@ -962,6 +1085,7 @@
             gameState.roomId = code;
             gameState.isHost = false;
             pendingJoinRoom = true;
+            showLoading();
 
             socket.emit('join-room', {
                 roomId: code,
@@ -1109,21 +1233,30 @@
             // ไม่แสดงคะแนน
         }
 
-        function endRound() { playSound('end'); socket.emit('end-round', { timeUp: gameState.timeUp === true }); }
-        function endRoundFromModal() { playSound('end'); socket.emit('end-round', { timeUp: gameState.timeUp === true }); }
+        function showConfirmEndRound() {
+            playSound('click');
+            if (!confirmEndRoundModalInstance) {
+                confirmEndRoundModalInstance = new bootstrap.Modal(document.getElementById('confirmEndRoundModal'));
+            }
+            confirmEndRoundModalInstance.show();
+        }
+        function doEndRound() {
+            playSound('end');
+            if (confirmEndRoundModalInstance) confirmEndRoundModalInstance.hide();
+            socket.emit('end-round', { timeUp: gameState.timeUp === true });
+        }
         function updateEndRoundButton() {
             const btn = document.getElementById('endRoundBtn');
             const text = document.getElementById('endRoundBtnText');
             if (!btn || !text) return;
             const n = gameState.players.length;
             const count = gameState.players.filter(pid => gameState.guessSubmitted[pid]).length;
-            const allDone = gameState.allHaveGuessed === true;
-            const canEnd = allDone || gameState.timeUp === true;
-            btn.disabled = !canEnd;
-            if (gameState.timeUp && !allDone)
-                text.textContent = `หมดเวลา - สิ้นสุดรอบ (${count}/${n} ทายแล้ว)`;
+            if (gameState.timeUp)
+                text.textContent = `หมดเวลา (${count}/${n} ทายแล้ว) — สิ้นสุดรอบ`;
+            else if (gameState.allHaveGuessed === true)
+                text.textContent = `ทุกคนทายครบ — สิ้นสุดรอบ`;
             else
-                text.textContent = allDone ? 'สิ้นสุดรอบ / เริ่มทาย' : `รอทุกคนทายครบ (${count}/${n})`;
+                text.textContent = `สิ้นสุดรอบ / เฉลยคำ (${count}/${n} ทายแล้ว)`;
         }
 
         function renderGuessingScreen() {
@@ -1177,7 +1310,7 @@
                 return `
                     <div class="card tw-mb-3" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); opacity: 0.6;">
                         <div class="card-body">
-                            <small class="text-muted">รอให้ ${gameState.playerNames[targetPid]} ทาย...</small>
+                            <small class="text-muted">${gameState.guessSubmitted[targetPid] ? '✔ ทายแล้ว' : 'รอให้ ' + gameState.playerNames[targetPid] + ' ทาย...'}</small>
                         </div>
                     </div>
                 `;
@@ -1235,8 +1368,8 @@
             playSound('click');
             socket.emit('leave-room');
             stopTimer();
-            gameState = { myId: null, myName: '', roomId: '', isHost: false, players: [], playerNames: {}, scores: {}, gameState: 'lobby', roundNum: 0 };
-            goToHome();
+            gameState = { myId: socket.id, myName: '', roomId: '', isHost: false, players: [], playerNames: {}, scores: {}, gameState: 'lobby', roundNum: 0, selectedCat: gameState.selectedCat || 'ปาร์ตี้', timerSecs: gameState.timerSecs || 300 };
+            showScreen('home');
             showToast('👋 ออกจากห้องแล้ว');
         }
 
@@ -1245,8 +1378,8 @@
             socket.emit('leave-room');
             stopTimer();
             closeGuessingModal();
-            gameState = { myId: null, myName: '', roomId: '', isHost: false, players: [], playerNames: {}, scores: {}, gameState: 'lobby', roundNum: 0 };
-            goToHome();
+            gameState = { myId: socket.id, myName: '', roomId: '', isHost: false, players: [], playerNames: {}, scores: {}, gameState: 'lobby', roundNum: 0, selectedCat: gameState.selectedCat || 'ปาร์ตี้', timerSecs: gameState.timerSecs || 300 };
+            showScreen('home');
             showToast('👋 ออกจากเกมแล้ว');
         }
 
@@ -1290,6 +1423,7 @@
 
         socket.on('join-error', (data) => {
             pendingJoinRoom = false;
+            hideLoading();
             showToast(data && data.message ? data.message : '⚠️ ไม่พบห้องนี้');
         });
 
@@ -1309,6 +1443,7 @@
                         pendingJoinRoom = false;
                         showLobbyGuest();
                         showToast('✅ เข้าห้องสำเร็จ!');
+                        setTimeout(hideLoading, 1800);
                     }
                 }
             }
@@ -1368,8 +1503,8 @@
                 gameState.guessSubmitted[data.guessResult.guesserId] = true;
             if (data.guessResult.guesserId === gameState.myId || data.guessResult.targetPlayerId === gameState.myId) {
                 gameState.guessResults[data.resultKey] = data.guessResult;
-                renderGuessingScreen(); // re-render เฉพาะถ้าเกี่ยวกับเรา
             }
+            renderGuessingScreen();
             if (data.scores) gameState.scores = data.scores;
             if (data.allHaveGuessed !== undefined) gameState.allHaveGuessed = data.allHaveGuessed;
             updateScoresDisplay();
@@ -1410,6 +1545,7 @@
             gameState.players = [];
             gameState.playerNames = {};
             gameState.gameState = 'lobby';
+            gameState.myId = socket.id;
             showScreen('home');
             showToast(data.message || 'เจ้าของห้องออกจากห้องแล้ว');
         });
