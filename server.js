@@ -199,11 +199,7 @@ io.on('connection', (socket) => {
   socket.on('end-round', (data) => {
     const room = rooms[socket.roomId];
     if (!room || socket.id !== room.creator) return;
-    if (room.gameState === 'guessing') return;
-
-    const timeUp = data && data.timeUp === true;
-    const allHaveGuessed = room.players.every(pid => room.playersWhoGuessed[pid]);
-    if (!timeUp && !allHaveGuessed) return;
+    if (room.gameState !== 'playing') return;
 
     room.gameState = 'guessing';
 
@@ -261,8 +257,8 @@ io.on('connection', (socket) => {
       room.players = room.players.filter(pid => pid !== socket.id);
       delete room.playerNames[socket.id];
       delete room.scores[socket.id];
-      delete room.wordAssignments[socket.id];
-      delete room.playersWhoGuessed[socket.id];
+      if (room.wordAssignments) delete room.wordAssignments[socket.id];
+      if (room.playersWhoGuessed) delete room.playersWhoGuessed[socket.id];
       Object.keys(room.guessResults || {}).forEach(key => {
         if (key.startsWith(socket.id + '_') || key.endsWith('_' + socket.id)) delete room.guessResults[key];
       });
@@ -284,6 +280,8 @@ io.on('connection', (socket) => {
       }
     }
     socket.leave(socket.roomId);
+    socket.roomId = null;
+    socket.playerName = null;
   });
 
   // ขาดการเชื่อมต่อ
@@ -297,7 +295,7 @@ io.on('connection', (socket) => {
       room.players = room.players.filter(pid => pid !== socket.id);
       delete room.playerNames[socket.id];
       delete room.scores[socket.id];
-      delete room.wordAssignments[socket.id];
+      if (room.wordAssignments) delete room.wordAssignments[socket.id];
       if (room.playersWhoGuessed) delete room.playersWhoGuessed[socket.id];
       Object.keys(room.guessResults || {}).forEach(key => {
         if (key.startsWith(socket.id + '_') || key.endsWith('_' + socket.id)) delete room.guessResults[key];
