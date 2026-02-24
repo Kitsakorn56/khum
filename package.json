@@ -16,7 +16,6 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "bcryptjs": "^2.4.3",
     "dotenv": "^16.6.1",
     "express": "^4.18.2",
     "mongoose": "^8.8.0",
@@ -29,3 +28,4 @@
     "node": ">=14.0.0"
   }
 }
+
