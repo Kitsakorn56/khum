@@ -5,605 +5,184 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>คำต้องห้าม × Multiplayer Word Game</title>
     <link rel="icon" type="image/png" href="/logo-title.png">
-    <!-- Bootstrap 5 -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- QR Code -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- Socket.io -->
     <script src="/socket.io/socket.io.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;900&display=swap');
-        
-        * { font-family: 'Kanit', sans-serif; }
-        
-        :root {
-            --primary-color: #f97316;
-            --secondary-color: #1e3a8a;
-            --success-color: #10b981;
-            --danger-color: #ef4444;
-        }
-        
-        body {
-            background: url('/background.png') center/cover no-repeat fixed;
-            background-attachment: fixed;
-            position: relative;
-            transition: all 0.3s ease;
-        }
-        
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(15, 23, 42, 0.7);
-            pointer-events: none;
-            z-index: 0;
-            transition: all 0.3s ease;
-        }
-        
-        html[data-bs-theme="light"] body::before {
-            background: rgba(255, 255, 255, 0.5);
-        }
-        html[data-bs-theme="light"] body {
-            color: #212529;
-        }
-        html[data-bs-theme="light"] .card {
-            background: rgba(255, 255, 255, 0.9);
-            border-color: rgba(0, 0, 0, 0.1);
-            color: #212529;
-        }
-        html[data-bs-theme="light"] .card-body,
-        html[data-bs-theme="light"] .card-title {
-            color: inherit;
-        }
-        html[data-bs-theme="light"] .form-control {
-            background: #fff;
-            border-color: #ced4da;
-            color: #212529;
-        }
-        html[data-bs-theme="light"] .guess-input-row input {
-            background: #fff;
-            border-color: #ced4da;
-            color: #212529;
-        }
-        html[data-bs-theme="light"] .leaderboard-item {
-            background: rgba(0, 0, 0, 0.05);
-        }
-        html[data-bs-theme="light"] .word-card {
-            background: url('/background-word.png') center no-repeat;
-            background-size: contain;
-            background-color: rgba(255,255,255,0.5);
-        }
-        html[data-bs-theme="light"] .word-card .word-text {
-            color: #1e293b;
-        }
-        html[data-bs-theme="light"] .word-card-footer {
-            background: rgba(0,0,0,0.05);
-            border-color: rgba(0,0,0,0.08);
-        }
-        html[data-bs-theme="light"] .word-card-wrapper.mine .word-card {
-            box-shadow: 0 0 0 3px var(--primary-color);
-        }
-        html[data-bs-theme="light"] .text-muted {
-            color: #6c757d !important;
-        }
-        html[data-bs-theme="light"] .btn-outline-light {
-            border-color: #212529;
-            color: #212529;
-        }
-        html[data-bs-theme="light"] .btn-outline-light:hover {
-            background: #212529;
-            color: #fff;
-        }
-        
-        .container-fluid {
-            position: relative;
-            z-index: 1;
-        }
-        
-        .logo-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-        }
-        
-        .logo-container img {
-            max-width: 100%;
-            height: auto;
-        }
-        
-        .card {
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(10px);
-        }
-        
-        .btn-orange {
-            background-color: var(--primary-color) !important;
-            border-color: var(--primary-color) !important;
-            color: white !important;
-        }
-        
-        .btn-orange:hover {
-            background-color: #ea6317 !important;
-            border-color: #ea6317 !important;
-            color: white !important;
-        }
-        
-        .logo-title {
-            font-size: 3rem;
-            font-weight: 900;
-            background: linear-gradient(135deg, #f97316 0%, #fbbf24 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .screen { 
-            display: none; 
-            animation: fadeIn 0.3s ease-in; 
-        }
-        
-        .screen.active { 
-            display: block; 
-        }
-        
-        @keyframes fadeIn { 
-            from { opacity: 0; transform: translateY(10px); } 
-            to { opacity: 1; transform: translateY(0); } 
-        }
-        
-        /* คำบนหัว: background-word.png มีแค่คำ, ชื่อ + ไอคอนอยู่ด้านล่าง */
-        .word-card-wrapper {
-            transition: transform 0.2s ease;
-            max-width: 100%;
-        }
-        .word-card-wrapper:hover {
-            transform: translateY(-2px);
-        }
-        .word-card-wrapper.mine .word-card {
-            box-shadow: 0 0 0 3px var(--primary-color);
-        }
-        .word-card {
-            background: url('/background-word.png') center no-repeat;
-            background-size: contain;
-            background-color: rgba(30, 41, 59, 0.3);
-            border: none;
-            border-radius: 10px 10px 0 0;
-            padding: 16px;
-            text-align: center;
-            min-height: 80px;
-            aspect-ratio: 600 / 200;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            max-width: 100%;
-            overflow: hidden;
-        }
-        .word-card .word-text {
-            color: #1e293b;
-            font-weight: 700;
-            text-shadow: 0 1px 2px rgba(255,255,255,0.8);
-        }
-        .word-card-footer {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 10px 12px;
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-top: none;
-            border-radius: 0 0 10px 10px;
-        }
-        .word-card-footer i {
-            color: var(--primary-color);
-            font-size: 1rem;
-        }
-        .word-card-footer .word-label {
-            color: inherit;
-            font-weight: 600;
-            font-size: 0.9rem;
-            margin: 0;
-        }
-        #wordsGrid .col-md-6,
-        #wordsGrid .col-lg-4 {
-            min-width: 0;
-        }
-
-        /* หมวดที่เลือก: แสดงรูปแบบแบนเนอร์ เต็มรูปไม่ขาด */
-        .selected-category-banner {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            padding: 8px 12px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .selected-category-banner img {
-            width: 120px;
-            height: 80px;
-            object-fit: contain;
-            border-radius: 8px;
-            display: block;
-        }
-        .selected-category-banner .selected-category-name {
-            font-size: 1rem;
-        }
-
-        .timer-display {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            background: conic-gradient(var(--primary-color) var(--progress, 0%), #334155 var(--progress, 0%));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
-            font-weight: bold;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-            margin: 0 auto;
-            transition: all 0.1s linear;
-        }
-        
-        .toast-custom {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--primary-color);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-            animation: slideIn 0.3s ease;
-            z-index: 9999;
-        }
-        
-        @keyframes slideIn { 
-            from { transform: translateX(400px); } 
-            to { transform: translateX(0); } 
-        }
-        
-        .gradient-box {
-            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
-            color: white;
-            border-radius: 12px;
-            padding: 20px;
-        }
-        
-        .gradient-box-orange {
-            background: linear-gradient(135deg, #ea6317 0%, #f97316 100%);
-            color: white;
-        }
-        
-        .qr-box {
-            background: #fff;
-            padding: 10px;
-            border-radius: 10px;
-            line-height: 0;
-            width: 116px;
-            height: 116px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-sizing: border-box;
-        }
-        .qr-box-outer {
-            background: #fff;
-            padding: 14px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            width: 140px;
-            min-height: 140px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            box-sizing: border-box;
-        }
-        #qrContainer {
-            width: 96px;
-            height: 96px;
-            line-height: 0;
-            overflow: hidden;
-            position: relative;
-            box-sizing: border-box;
-        }
-        #qrContainer > img,
-        #qrContainer > canvas {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            width: 96px !important;
-            height: 96px !important;
-            max-width: 96px !important;
-            max-height: 96px !important;
-            display: block !important;
-        }
-        #qrContainer > table {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            width: 96px !important;
-            height: 96px !important;
-            max-width: 96px !important;
-            max-height: 96px !important;
-            margin: 0 !important;
-        }
-        /* แบนเนอร์หมวดหมู่: ใช้รูปขนาด 600×400 px (กว้าง×สูง) อัตราส่วน 3:2 */
-        .category-banner-item {
-            cursor: pointer;
-            display: block;
-            width: 100%;
-            border-radius: 10px;
-            overflow: hidden;
-            border: 2px solid transparent;
-            transition: all 0.2s;
-            margin-bottom: 10px;
-        }
-        .category-banner-item:hover {
-            border-color: var(--primary-color);
-            opacity: 0.95;
-        }
-        .category-banner-item.selected {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.3);
-        }
-        .category-banner-item img {
-            width: 100%;
-            aspect-ratio: 600 / 400;
-            object-fit: cover;
-            display: block;
-        }
-        
-        .guess-input-row {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .guess-input-row input {
-            flex: 1;
-            padding: 10px 15px;
-            border-radius: 8px;
-            border: 1px solid #334155;
-            background: rgba(15, 23, 42, 0.8);
-            color: white;
-            font-family: 'Kanit', sans-serif;
-        }
-        
-        .guess-input-row input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
-            background: rgba(15, 23, 42, 0.9);
-        }
-        
-        .leaderboard-item {
-            padding: 12px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 8px;
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .score-badge {
-            background: var(--primary-color);
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-        
-        /* Custom Tailwind-like utilities with tw- prefix */
-        .tw-gap-2 { gap: 8px; }
-        .tw-gap-3 { gap: 12px; }
-        .tw-gap-4 { gap: 16px; }
-        .tw-mb-4 { margin-bottom: 16px; }
-        .tw-mb-3 { margin-bottom: 12px; }
-        .tw-mb-2 { margin-bottom: 8px; }
-        .tw-p-4 { padding: 16px; }
-        .tw-p-3 { padding: 12px; }
-        .tw-p-2 { padding: 8px; }
-        .tw-rounded-lg { border-radius: 8px; }
-        .tw-rounded-xl { border-radius: 12px; }
-        .tw-text-center { text-align: center; }
-        .tw-font-bold { font-weight: 700; }
-        .tw-font-semibold { font-weight: 600; }
-        .tw-font-900 { font-weight: 900; }
-        .tw-text-sm { font-size: 0.875rem; }
-        .tw-text-lg { font-size: 1.125rem; }
-        .tw-text-orange-500 { color: var(--primary-color); }
-        .tw-text-green-500 { color: var(--success-color); }
-        .tw-text-red-500 { color: var(--danger-color); }
-        .tw-shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        .tw-hover-scale:hover { transform: scale(1.05); }
-        .tw-transition { transition: all 0.3s ease; }
-        .tw-duration-300 { transition-duration: 0.3s; }
-        .tw-ease-in { transition-timing-function: ease-in; }
-        .tw-cursor-pointer { cursor: pointer; }
-        .tw-flex { display: flex; }
-        .tw-flex-col { flex-direction: column; }
-        .tw-items-center { align-items: center; }
-        .tw-justify-center { justify-content: center; }
-        .tw-justify-between { justify-content: space-between; }
-        .tw-inline-block { display: inline-block; }
-        .tw-backdrop-blur { backdrop-filter: blur(10px); }
-        .tw-bg-gradient-orange { background: linear-gradient(135deg, #ea6317 0%, #f97316 100%); }
-        .tw-bg-gradient-blue { background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); }
-        .tw-border-orange { border-color: var(--primary-color); }
-        .tw-space-y-3 > * + * { margin-top: 12px; }
-        .tw-space-y-4 > * + * { margin-top: 16px; }
-        .tw-max-w-md { max-width: 448px; }
-        .tw-max-w-lg { max-width: 512px; }
-        .tw-w-full { width: 100%; }
-        .category-btn:hover { 
-            background: rgba(249, 115, 22, 0.2) !important; 
-            border-color: var(--primary-color) !important;
-        }
-        .category-btn.selected { 
-            background: rgba(249, 115, 22, 0.3) !important; 
-            border-color: var(--primary-color) !important;
-        }
-        /* ปุ่มเวลา: เมื่อเลือกให้สีเหมือนกัน (ส้ม) */
-        .btn-group-timer input.btn-check:checked + label.btn {
-            background-color: var(--primary-color) !important;
-            border-color: var(--primary-color) !important;
-            color: white !important;
-        }
-        .btn-group-timer label.btn {
-            border-color: rgba(255,255,255,0.3);
-        }
-        html[data-bs-theme="light"] .btn-group-timer label.btn {
-            border-color: #ced4da;
-        }
-
-        /* Loading overlay — พื้นหลังสีทึบ, วิดีโอพื้นดำ = โปร่งใส (mix-blend-mode: screen) */
-        #loadingOverlay {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: #0f172a;
-            transition: opacity 0.3s ease;
-            pointer-events: auto;
-            isolation: isolate;
-        }
-        #loadingOverlay.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        #loadingVideoWrap {
-            max-width: 90vw;
-            max-height: 50vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        @media (min-width: 768px) {
-            #loadingVideoWrap { max-width: 320px; max-height: 320px; }
-        }
-        #loadingVideoWrap video {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            mix-blend-mode: screen;
-        }
-        #loadingBarWrap {
-            width: 80%;
-            max-width: 280px;
-            height: 4px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 2px;
-            margin-top: 1.5rem;
-            overflow: hidden;
-        }
-        #loadingBar {
-            height: 100%;
-            width: 30%;
-            background: var(--primary-color);
-            border-radius: 2px;
-            animation: loading-bar 1.2s ease-in-out infinite;
-        }
-        @keyframes loading-bar {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(400%); }
-        }
-        #loadingFallback { display: none; text-align: center; color: #fff; }
-        #loadingOverlay.video-failed #loadingVideoWrap,
-        #loadingOverlay.video-failed #loadingBarWrap { display: none; }
-        #loadingOverlay.video-failed #loadingFallback { display: block; }
-        .loading-spinner { width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.2); border-top-color: var(--primary-color); border-radius: 50%; animation: loading-spin 0.8s linear infinite; margin: 0 auto 1rem; }
-        @keyframes loading-spin { to { transform: rotate(360deg); } }
-    </style>
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body class="bg-dark text-light">
-    <!-- Loading: ใส่ไฟล์วิดีโอที่ public/loading.mp4 (ถ้าไม่มีจะแสดง spinner แทน) -->
+
+    <!-- Loading Overlay -->
     <div id="loadingOverlay">
         <div id="loadingVideoWrap">
-            <video id="loadingVideo" autoplay muted loop playsinline preload="auto" onerror="this.parentElement.parentElement.classList.add('video-failed')">
+            <video id="loadingVideo" autoplay muted loop playsinline preload="auto"
+                onerror="this.parentElement.parentElement.classList.add('video-failed')">
                 <source src="/loading.mp4" type="video/mp4">
             </video>
         </div>
-        <div id="loadingBarWrap">
-            <div id="loadingBar"></div>
-        </div>
+        <div id="loadingBarWrap"><div id="loadingBar"></div></div>
         <div id="loadingFallback">
             <div class="loading-spinner"></div>
             <div>กำลังโหลด...</div>
         </div>
     </div>
 
-    <!-- Toast Notification -->
+    <!-- Toast -->
     <div id="toast" class="toast-custom" style="display: none;"></div>
 
-    <!-- Theme Toggle -->
-    <button class="btn btn-outline-light position-fixed top-3 end-3" style="z-index: 50;" id="themeToggleBtn" onclick="toggleTheme()" aria-label="สลับธีม">
-        <i class="fas fa-moon" id="themeIcon"></i>
-    </button>
-
-    <!-- Main Container -->
-    <div class="container-fluid d-flex align-items-center justify-content-center min-vh-100 py-5">
-        
-        <!-- HOME SCREEN -->
-        <div class="screen active tw-w-full tw-max-w-md" id="screen-home">
-            <div class="tw-mb-4">
-                <div class="logo-container tw-mb-4">
-                    <img src="/logo.png" alt="คำต้องห้าม" style="max-width: 280px; width: 100%; height: auto; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));">
-                </div>
-                <p class="text-center text-muted">เกมทายคำแบบเรียลไทม์ พร้อมเพื่อน</p>
+    <!-- Top Controls -->
+    <div class="position-fixed top-3 end-3 d-flex align-items-center gap-2" style="z-index: 50;">
+        <button class="btn btn-ghost btn-sm px-2 py-2" id="themeToggleBtn" onclick="toggleTheme()" aria-label="สลับธีม" style="border-radius: 10px; width: 38px; height: 38px;">
+            <i class="fas fa-moon" id="themeIcon"></i>
+        </button>
+        <div id="profileMenu" style="display: none;">
+            <div class="dropdown">
+                <button class="btn btn-ghost btn-sm dropdown-toggle d-flex align-items-center gap-2" type="button"
+                    id="profileDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false"
+                    style="border-radius: 999px; padding: 4px 12px 4px 4px;">
+                    <div id="profileAvatar" class="rounded-circle d-flex align-items-center justify-content-center overflow-hidden"
+                        style="width: 30px; height: 30px; background: var(--primary); flex-shrink: 0;">
+                        <i class="fas fa-user text-white" style="font-size: 12px;"></i>
+                    </div>
+                    <span id="profileName" class="d-none d-sm-inline" style="font-size: 0.85rem; font-weight: 600;"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg" aria-labelledby="profileDropdownBtn"
+                    style="background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-md); min-width: 200px;">
+                    <li>
+                        <button class="dropdown-item" type="button" onclick="openProfileModal()"
+                            style="color: var(--text-1); padding: 10px 16px; font-size: 0.9rem;">
+                            <i class="fas fa-user-edit me-2 text-muted"></i>ปรับแต่งโปรไฟล์
+                        </button>
+                    </li>
+                    <li id="adminMenuEntry" style="display:none;">
+                        <button class="dropdown-item" type="button" onclick="openAdminPanel()"
+                            style="color: #f59e0b; padding: 10px 16px; font-size: 0.9rem; font-weight: 700;">
+                            <i class="fas fa-crown me-2"></i>จัดการยศ (Admin)
+                        </button>
+                    </li>
+                    <li><hr class="dropdown-divider" style="border-color: var(--border); margin: 4px 0;"></li>
+                    <li>
+                        <button class="dropdown-item text-danger" type="button" onclick="logout()"
+                            style="padding: 10px 16px; font-size: 0.9rem;">
+                            <i class="fas fa-sign-out-alt me-2"></i>ออกจากระบบ
+                        </button>
+                    </li>
+                </ul>
             </div>
+        </div>
+    </div>
 
+    <!-- =============================== SCREENS =============================== -->
+    <div class="container-fluid d-flex align-items-center justify-content-center min-vh-100 py-5">
+
+        <!-- ── AUTH SCREEN ── -->
+        <div class="screen active tw-w-full tw-max-w-md" id="screen-auth">
+            <div class="logo-container tw-mb-4">
+                <img src="/logo.png" alt="คำต้องห้าม" style="max-width: 260px; width: 100%; filter: drop-shadow(0 4px 16px rgba(0,0,0,0.4));">
+            </div>
+            <p class="text-center tw-mb-4" style="color: var(--text-3); font-size: 0.9rem; letter-spacing: 0.02em;">เข้าสู่ระบบหรือสมัครสมาชิกก่อนเริ่มเล่น</p>
+
+            <div class="auth-card">
+                <div style="padding: 28px 28px 24px;">
+
+                    <!-- Tabs -->
+                    <div class="auth-pills nav nav-pills nav-fill tw-mb-4">
+                        <div class="nav-item">
+                            <button class="nav-link pill-tab active" id="authTabLogin" type="button" onclick="setAuthMode('login')">
+                                <i class="fas fa-user me-2"></i>เข้าสู่ระบบ
+                            </button>
+                        </div>
+                        <div class="nav-item">
+                            <button class="nav-link pill-tab" id="authTabSignup" type="button" onclick="setAuthMode('signup')">
+                                <i class="fas fa-user-plus me-2"></i>สมัครสมาชิก
+                            </button>
+                        </div>
+                    </div>
+
+                    <form id="authForm" onsubmit="submitAuth(event)">
+                        <!-- Email -->
+                        <div class="mb-3">
+                            <label class="form-label">อีเมล</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope" style="font-size: 0.85rem;"></i></span>
+                                <input type="email" class="form-control" id="authEmail" placeholder="name@email.com" required>
+                            </div>
+                        </div>
+
+                        <!-- Password -->
+                        <div class="mb-3">
+                            <label class="form-label">รหัสผ่าน</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock" style="font-size: 0.85rem;"></i></span>
+                                <input type="password" class="form-control" id="authPassword" placeholder="อย่างน้อย 4 ตัวอักษร" required minlength="4">
+                            </div>
+                        </div>
+
+                        <!-- Display Name (signup only) -->
+                        <div class="mb-3" id="authDisplayNameGroup" style="display: none;">
+                            <label class="form-label">ชื่อในเกม</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-id-badge" style="font-size: 0.85rem;"></i></span>
+                                <input type="text" class="form-control" id="authDisplayName" maxlength="20" placeholder="เช่น NINJA, JUN...">
+                            </div>
+                        </div>
+
+                        <!-- Avatar Picker (signup only) -->
+                        <div id="authAvatarGroup" style="display: none;">
+                            <label class="form-label">รูปโปรไฟล์</label>
+                            <input type="file" class="d-none" id="authAvatarFile" accept="image/*">
+                            <div id="authAvatarPicker"><!-- filled by JS --></div>
+                        </div>
+
+                        <button class="btn btn-orange w-100 py-3 fw-bold mt-1" id="authSubmitBtn" type="submit" style="font-size: 1rem; border-radius: 12px;">
+                            <i class="fas fa-sign-in-alt me-2"></i>เข้าสู่ระบบ
+                        </button>
+                    </form>
+
+                    <p class="tw-mt-3 text-center" style="color: var(--text-3); font-size: 0.78rem;">
+                        ระบบบัญชีเก็บข้อมูลบนเซิร์ฟเวอร์นี้เท่านั้น
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── HOME SCREEN ── -->
+        <div class="screen tw-w-full tw-max-w-md" id="screen-home">
+            <div class="logo-container tw-mb-4">
+                <img src="/logo.png" alt="คำต้องห้าม" style="max-width: 260px; width: 100%; filter: drop-shadow(0 4px 16px rgba(0,0,0,0.4));">
+            </div>
+            <p class="text-center tw-mb-4" style="color: var(--text-3); font-size: 0.9rem;">เกมทายคำแบบเรียลไทม์ พร้อมเพื่อน</p>
             <div class="card">
                 <div class="card-body tw-p-4 tw-space-y-3">
-                    <button class="btn btn-orange w-100 py-3 fw-bold tw-transition" onclick="goToCreateRoom()">
-                        <i class="fas fa-plus-circle me-2"></i> สร้างห้องใหม่
+                    <button class="btn btn-orange w-100 py-3 fw-bold" onclick="goToCreateRoom()">
+                        <i class="fas fa-plus-circle me-2"></i>สร้างห้องใหม่
                     </button>
-                    <button class="btn btn-secondary w-100 py-3 fw-bold tw-transition tw-hover-scale" onclick="goToJoinRoom()">
-                        <i class="fas fa-sign-in-alt me-2"></i> เข้าร่วมห้อง
+                    <button class="btn btn-ghost w-100 py-3 fw-bold" onclick="goToJoinRoom()">
+                        <i class="fas fa-sign-in-alt me-2"></i>เข้าร่วมห้อง
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- CREATE ROOM SCREEN -->
+        <!-- ── CREATE ROOM ── -->
         <div class="screen tw-w-full tw-max-w-md" id="screen-create">
             <div class="logo-container tw-mb-4">
-                <img src="/logo.png" alt="คำต้องห้าม" style="max-width: 300px; width: 100%; height: auto; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));">
+                <img src="/logo.png" alt="คำต้องห้าม" style="max-width: 260px; width: 100%; filter: drop-shadow(0 4px 16px rgba(0,0,0,0.4));">
             </div>
             <div class="card">
                 <div class="card-body tw-p-4">
-                    <h2 class="card-title tw-mb-4">
-                        <i class="fas fa-plus-circle me-2"></i>สร้างห้องใหม่
-                    </h2>
-                    
-                    <div class="tw-mb-4">
-                        <label class="form-label fw-bold">ชื่อของคุณ</label>
+                    <h2 class="card-title tw-mb-4"><i class="fas fa-plus-circle me-2"></i>สร้างห้องใหม่</h2>
+                    <div class="tw-mb-4" id="hostNameGroup">
+                        <label class="form-label">ชื่อของคุณ</label>
                         <input type="text" class="form-control" id="hostName" placeholder="ใส่ชื่อ..." maxlength="12">
                     </div>
-                    
                     <div class="tw-space-y-3">
-                        <button class="btn btn-success w-100 py-2 fw-bold tw-transition" onclick="createRoom()">
+                        <button class="btn btn-orange w-100 py-2 fw-bold" onclick="requireLoginOr(createRoom)">
                             <i class="fas fa-check me-2"></i>สร้างห้อง
                         </button>
-                        <button class="btn btn-secondary w-100 py-2 tw-transition" onclick="goToHome()">
+                        <button class="btn btn-ghost w-100 py-2" onclick="goToHome()">
                             <i class="fas fa-arrow-left me-2"></i>กลับ
                         </button>
                     </div>
@@ -611,33 +190,28 @@
             </div>
         </div>
 
-        <!-- JOIN ROOM SCREEN -->
+        <!-- ── JOIN ROOM ── -->
         <div class="screen tw-w-full tw-max-w-md" id="screen-join">
             <div class="logo-container tw-mb-4">
-                <img src="/logo.png" alt="คำต้องห้าม" style="max-width: 300px; width: 100%; height: auto; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));">
+                <img src="/logo.png" alt="คำต้องห้าม" style="max-width: 260px; width: 100%; filter: drop-shadow(0 4px 16px rgba(0,0,0,0.4));">
             </div>
             <div class="card">
                 <div class="card-body tw-p-4">
-                    <h2 class="card-title tw-mb-4">
-                        <i class="fas fa-sign-in-alt me-2"></i>เข้าร่วมห้อง
-                    </h2>
-                    
-                    <div class="tw-mb-4">
-                        <label class="form-label fw-bold">ชื่อของคุณ</label>
+                    <h2 class="card-title tw-mb-4"><i class="fas fa-sign-in-alt me-2"></i>เข้าร่วมห้อง</h2>
+                    <div class="tw-mb-3" id="guestNameGroup">
+                        <label class="form-label">ชื่อของคุณ</label>
                         <input type="text" class="form-control" id="guestName" placeholder="ใส่ชื่อ..." maxlength="12">
                     </div>
-                    
                     <div class="tw-mb-4">
-                        <label class="form-label fw-bold">รหัสห้อง (4 ตัวอักษร)</label>
-                        <input type="text" class="form-control" id="roomCode" placeholder="XXXX" maxlength="4" 
-                            style="text-transform: uppercase; text-align: center; font-size: 24px; letter-spacing: 8px; font-weight: bold;">
+                        <label class="form-label">รหัสห้อง</label>
+                        <input type="text" class="form-control text-center" id="roomCode" placeholder="XXXX" maxlength="4"
+                            style="text-transform: uppercase; font-size: 24px; letter-spacing: 10px; font-weight: 800; border-radius: 12px; padding: 14px;">
                     </div>
-                    
                     <div class="tw-space-y-3">
-                        <button class="btn btn-success w-100 py-2 fw-bold tw-transition" onclick="joinRoom()">
+                        <button class="btn btn-orange w-100 py-2 fw-bold" onclick="requireLoginOr(joinRoom)">
                             <i class="fas fa-check me-2"></i>เข้าร่วม
                         </button>
-                        <button class="btn btn-secondary w-100 py-2 tw-transition" onclick="goToHome()">
+                        <button class="btn btn-ghost w-100 py-2" onclick="goToHome()">
                             <i class="fas fa-arrow-left me-2"></i>กลับ
                         </button>
                     </div>
@@ -645,22 +219,22 @@
             </div>
         </div>
 
-        <!-- LOBBY SCREEN (HOST) -->
+        <!-- ── LOBBY HOST ── -->
         <div class="screen tw-w-full" id="screen-lobby" style="max-width: 900px;">
-            <!-- Card สีส้ม: รหัสห้อง + การ์ดสีขาว (ตัว QR สีดำอยู่ในการ์ดสีขาว) -->
             <div class="card tw-mb-4 border-0 overflow-hidden">
                 <div class="card-body tw-p-4 gradient-box gradient-box-orange">
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                         <div>
-                            <p class="tw-mb-2 fw-bold text-white-50">รหัสห้อง</p>
-                            <p class="fs-1 fw-bold tw-mb-2 text-white" id="displayRoomCode">----</p>
-                            <button class="btn btn-light btn-sm tw-transition tw-hover-scale" onclick="copyRoomCode()">
+                            <p class="tw-mb-2 fw-bold" style="color: rgba(255,255,255,0.6); font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase;">รหัสห้อง</p>
+                            <p class="tw-mb-2 fw-bold text-white" id="displayRoomCode" style="font-size: 3rem; letter-spacing: 4px; line-height: 1; font-family: 'Noto Serif Thai', serif;">----</p>
+                            <button class="btn btn-sm" onclick="copyRoomCode()"
+                                style="background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; font-weight: 600; font-size: 0.8rem; backdrop-filter: blur(4px);">
                                 <i class="fas fa-copy me-2"></i>คัดลอก
                             </button>
                         </div>
-                        <div class="qr-box-outer tw-text-center">
-                            <p class="tw-mb-2 fw-bold text-dark">QR เข้าห้อง</p>
-                            <div class="qr-box d-inline-block" id="qrContainer"></div>
+                        <div class="qr-box-outer">
+                            <p class="tw-mb-2 fw-bold text-dark" style="font-size: 0.75rem;">QR เข้าห้อง</p>
+                            <div class="qr-box" id="qrContainer"></div>
                         </div>
                     </div>
                 </div>
@@ -669,37 +243,29 @@
             <div class="card tw-mb-4">
                 <div class="card-body tw-p-4">
                     <div class="d-flex justify-content-between align-items-center tw-mb-4">
-                        <h2 class="card-title tw-mb-0">
-                            <i class="fas fa-door-open me-2"></i>ห้องเกม
-                        </h2>
-                        <span class="badge bg-success p-2">
-                            <i class="fas fa-circle me-2"></i>ห้องเปิดอยู่
-                        </span>
+                        <h2 class="card-title tw-mb-0"><i class="fas fa-door-open me-2"></i>ห้องเกม</h2>
+                        <span class="badge bg-success p-2" style="font-size: 0.8rem;"><i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>ห้องเปิดอยู่</span>
                     </div>
 
-                    <!-- Game Settings -->
-                    <h5 class="tw-mb-3">
+                    <h5 class="tw-mb-3" style="font-size: 0.9rem; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em;">
                         <i class="fas fa-cog me-2"></i>ตั้งค่าเกม
                     </h5>
-                    
+
                     <div class="tw-mb-4">
-                        <label class="form-label fw-bold tw-mb-2 d-block">หมวดหมู่คำ</label>
+                        <label class="form-label">หมวดหมู่คำ</label>
                         <div class="d-flex align-items-center gap-3 flex-wrap">
-                            <button type="button" class="btn btn-orange" onclick="openCategoryModal()">
-                                <i class="fas fa-images me-2"></i>เลือกหมวดหมู่คำ
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="openCategoryModal()" style="font-weight: 600;">
+                                <i class="fas fa-images me-2"></i>เลือกหมวด
                             </button>
-                            <div class="d-flex align-items-center gap-3 flex-wrap">
-                                <span class="text-muted">หมวดที่เลือก:</span>
-                                <div class="selected-category-banner">
-                                    <img id="selectedCategoryImg" src="/cat-party.png" alt="ปาร์ตี้">
-                                    <strong id="selectedCategoryLabel" class="selected-category-name">ปาร์ตี้</strong>
-                                </div>
+                            <div class="selected-category-banner">
+                                <img id="selectedCategoryImg" src="/cat-party.png" alt="ปาร์ตี้">
+                                <strong id="selectedCategoryLabel" class="selected-category-name">ปาร์ตี้</strong>
                             </div>
                         </div>
                     </div>
 
                     <div class="tw-mb-4">
-                        <label class="form-label fw-bold">เวลาต่อรอบ (3 / 5 / 8 นาที)</label>
+                        <label class="form-label">เวลาต่อรอบ</label>
                         <div class="btn-group w-100 btn-group-timer" role="group">
                             <input type="radio" class="btn-check" name="timer" id="timer180" onclick="changeTimer(180)">
                             <label class="btn btn-outline-secondary" for="timer180">3 นาที</label>
@@ -707,21 +273,21 @@
                             <label class="btn btn-outline-secondary" for="timer300">5 นาที</label>
                             <input type="radio" class="btn-check" name="timer" id="timer480" onclick="changeTimer(480)">
                             <label class="btn btn-outline-secondary" for="timer480">8 นาที</label>
+                            <input type="radio" class="btn-check" name="timer" id="timerCustom" onclick="openCustomTimer()">
+                            <label class="btn btn-outline-secondary" for="timerCustom" id="timerCustomLabel">กำหนดเอง</label>
                         </div>
                     </div>
 
-                    <!-- Players List -->
-                    <h5 class="tw-mb-3">
+                    <h5 class="tw-mb-3" style="font-size: 0.9rem; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em;">
                         <i class="fas fa-users me-2"></i>ผู้เล่น (<span id="playerCount">1</span>)
                     </h5>
                     <div id="playersList" class="tw-mb-4" style="max-height: 300px; overflow-y: auto;"></div>
 
-                    <!-- Action Buttons -->
                     <div class="tw-space-y-3">
-                        <button class="btn btn-success w-100 py-2 fw-bold tw-transition tw-hover-scale" onclick="startGame()">
+                        <button class="btn btn-success w-100 py-2 fw-bold" onclick="startGame()" style="border-radius: var(--radius-sm);">
                             <i class="fas fa-play me-2"></i>เริ่มเกม
                         </button>
-                        <button class="btn btn-danger w-100 py-2 tw-transition tw-hover-scale" onclick="leaveLobby()">
+                        <button class="btn btn-ghost w-100 py-2" onclick="leaveLobby()">
                             <i class="fas fa-sign-out-alt me-2"></i>ออก
                         </button>
                     </div>
@@ -729,85 +295,69 @@
             </div>
         </div>
 
-        <!-- LOBBY SCREEN (GUEST) -->
+        <!-- ── LOBBY GUEST ── -->
         <div class="screen tw-w-full tw-max-w-lg" id="screen-guest-lobby">
             <div class="logo-container tw-mb-4">
-                <img src="/logo.png" alt="คำต้องห้าม" style="max-width: 300px; width: 100%; height: auto; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));">
+                <img src="/logo.png" alt="คำต้องห้าม" style="max-width: 260px; width: 100%; filter: drop-shadow(0 4px 16px rgba(0,0,0,0.4));">
             </div>
             <div class="card">
                 <div class="card-body tw-p-4">
-                    <h2 class="card-title tw-mb-4">
-                        <i class="fas fa-hourglass-start me-2"></i>รอเริ่มเกม...
-                    </h2>
-                    
+                    <h2 class="card-title tw-mb-4"><i class="fas fa-hourglass-start me-2"></i>รอเริ่มเกม...</h2>
                     <div class="gradient-box tw-mb-4">
-                        <p class="tw-mb-2 fw-bold text-white-50">ห้องที่เข้าร่วม</p>
-                        <p class="fs-1 fw-bold" id="guestRoomCode">----</p>
+                        <p class="tw-mb-2 fw-bold" style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">ห้องที่เข้าร่วม</p>
+                        <p class="fs-1 fw-bold" id="guestRoomCode" style="letter-spacing: 4px; font-family: 'Noto Serif Thai', serif; margin: 0;">----</p>
                     </div>
-
-                    <h5 class="tw-mb-3">
+                    <h5 class="tw-mb-3" style="font-size: 0.9rem; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em;">
                         <i class="fas fa-users me-2"></i>ผู้เล่น (<span id="guestPlayerCount">1</span>)
                     </h5>
                     <div id="guestPlayersList" class="tw-mb-4" style="max-height: 300px; overflow-y: auto;"></div>
-
-                    <div class="alert alert-warning tw-mb-4" role="alert">
-                        <i class="fas fa-info-circle me-2"></i>รอให้เจ้าของห้องกด "เริ่มเกม"
+                    <div class="alert" role="alert"
+                        style="background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.2); border-radius: var(--radius-sm); color: var(--text-1); font-size: 0.9rem;">
+                        <i class="fas fa-info-circle me-2" style="color: var(--primary);"></i>รอให้เจ้าของห้องกด "เริ่มเกม"
                     </div>
-
-                    <button class="btn btn-danger w-100 py-2 tw-transition tw-hover-scale" onclick="leaveLobby()">
+                    <button class="btn btn-ghost w-100 py-2" onclick="leaveLobby()">
                         <i class="fas fa-sign-out-alt me-2"></i>ออก
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- GAME SCREEN -->
+        <!-- ── GAME SCREEN ── -->
         <div class="screen tw-w-full" id="screen-game" style="max-width: 1200px;">
             <div class="row g-4">
-                <!-- Main Game Area -->
                 <div class="col-12">
-                    <!-- Timer -->
                     <div class="card tw-mb-4">
                         <div class="card-body tw-p-4 tw-text-center">
-                            <div class="timer-display tw-mb-3">
-                                <span id="timerText">60</span>
-                            </div>
+                            <div class="timer-display tw-mb-3"><span id="timerText">5:00</span></div>
                             <p id="roundText" class="text-muted tw-mb-0">รอบที่ 1</p>
                         </div>
                     </div>
-
-                    <!-- Words Grid (ไม่ให้คำล้นออกจาก card หลัก) -->
                     <div class="card tw-mb-4 overflow-hidden">
                         <div class="card-body tw-p-4">
-                            <h5 class="tw-mb-3">
+                            <h5 class="tw-mb-3" style="color: var(--text-2); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em;">
                                 <i class="fas fa-align-justify me-2"></i>คำบนหัวของทุกคน
                             </h5>
                             <div id="wordsGrid" class="row g-3 overflow-hidden"></div>
                         </div>
                     </div>
-
-                    <!-- Host Controls -->
                     <div id="hostControls" style="display: none;" class="tw-mb-4">
-                        <button id="endRoundBtn" class="btn btn-danger w-100 py-3 fw-bold tw-transition tw-hover-scale" onclick="showConfirmEndRound()">
+                        <button id="endRoundBtn" class="btn btn-danger w-100 py-3 fw-bold" onclick="showConfirmEndRound()">
                             <i class="fas fa-stop-circle me-2"></i><span id="endRoundBtnText">สิ้นสุดรอบ / เฉลยคำ</span>
                         </button>
-                        <p class="text-muted small tw-mb-0 mt-1">กดเพื่อสิ้นสุดรอบและเฉลยคำ (จะมี popup ยืนยัน)</p>
+                        <p class="text-muted small tw-mb-0 mt-1">กดเพื่อสิ้นสุดรอบและเฉลยคำ</p>
                     </div>
-
-                    <!-- Leave Button -->
-                    <button class="btn btn-secondary w-100 py-2 tw-transition tw-hover-scale" onclick="leaveGame()">
+                    <button class="btn btn-ghost w-100 py-2" onclick="leaveGame()">
                         <i class="fas fa-sign-out-alt me-2"></i>ออกจากเกม
                     </button>
                 </div>
-
-                <!-- Sidebar (ไม่แสดงคะแนน) -->
-                <div class="col-lg-4" style="display: none;">
-                </div>
             </div>
         </div>
+
     </div>
 
-    <!-- Modal เลือกหมวดหมู่คำ: เรียงลงมาแบบแบนเนอร์ (รูป 600×400 px) -->
+    <!-- ======================== MODALS ======================== -->
+
+    <!-- Modal เลือกหมวดหมู่ -->
     <div class="modal fade" id="categoryModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
@@ -815,8 +365,8 @@
                     <h5 class="modal-title"><i class="fas fa-images me-2"></i>เลือกหมวดหมู่คำ</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
                 </div>
-                <div class="modal-body py-3">
-                    <p class="text-muted small tw-mb-3">กดที่แบนเนอร์หมวดที่ต้องการ</p>
+                <div class="modal-body">
+                    <p style="color: var(--text-3); font-size: 0.85rem;" class="tw-mb-3">กดที่แบนเนอร์หมวดที่ต้องการ</p>
                     <div id="categoryModalGrid" class="row g-3">
                         <div class="col-6">
                             <div class="category-banner-item category-modal-item" data-value="ปาร์ตี้" onclick="selectCategoryFromModal('ปาร์ตี้')">
@@ -834,24 +384,20 @@
         </div>
     </div>
 
-    <!-- Guessing Modal -->
+    <!-- Modal ทาย -->
     <div class="modal fade" id="guessingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header tw-border-0">
-                    <h5 class="modal-title">
-                        <i class="fas fa-bullseye me-2"></i>ลองทายคำบนหัว!
-                    </h5>
+                    <h5 class="modal-title"><i class="fas fa-bullseye me-2"></i>ลองทายคำบนหัว!</h5>
                 </div>
-                <div class="modal-body">
-                    <div id="guessingCards"></div>
-                </div>
+                <div class="modal-body"><div id="guessingCards"></div></div>
                 <div class="modal-footer tw-border-0">
-                    <button type="button" class="btn btn-secondary" id="closeGuessingBtn" style="display: none;" onclick="closeGuessingModal()">
+                    <button type="button" class="btn btn-ghost" id="closeGuessingBtn" style="display: none;" onclick="closeGuessingModal()">
                         <i class="fas fa-times me-2"></i>ปิด
                     </button>
                     <button type="button" class="btn btn-danger" id="hostEndRoundModalBtn" style="display: none;" onclick="showConfirmEndRound()">
-                        <i class="fas fa-stop-circle me-2"></i>สิ้นสุดรอบ / เฉลยคำ
+                        <i class="fas fa-stop-circle me-2"></i>สิ้นสุดรอบ
                     </button>
                     <button type="button" class="btn btn-success" id="hostNextBtn" style="display: none;" onclick="nextRound()">
                         <i class="fas fa-redo me-2"></i>รอบถัดไป
@@ -869,761 +415,1396 @@
                     <h5 class="modal-title"><i class="fas fa-question-circle me-2"></i>ยืนยันสิ้นสุดรอบ</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="color: var(--text-2);">
                     คุณต้องการสิ้นสุดรอบและเฉลยคำตอนนี้ใช่ไหม? (บางคนอาจยังทายไม่ครบ)
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>ยกเลิก
-                    </button>
-                    <button type="button" class="btn btn-danger" id="confirmEndRoundBtn" onclick="doEndRound()">
-                        <i class="fas fa-check me-2"></i>ยืนยัน
+                    <button type="button" class="btn btn-ghost" data-bs-dismiss="modal"><i class="fas fa-times me-2"></i>ยกเลิก</button>
+                    <button type="button" class="btn btn-danger" id="confirmEndRoundBtn" onclick="doEndRound()"><i class="fas fa-check me-2"></i>ยืนยัน</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal โปรไฟล์ (redesigned avatar picker) -->
+    <div class="modal fade" id="profileModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-user-cog me-2"></i>ปรับแต่งโปรไฟล์</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="profileForm" onsubmit="submitProfile(event)">
+                        <!-- Current avatar preview & picker -->
+                        <div class="d-flex align-items-center gap-4 tw-mb-4">
+                            <div id="profileAvatarTrigger" class="avatar-trigger flex-shrink-0" onclick="triggerProfileAvatarPick()" style="width: 80px; height: 80px;">
+                                <div class="avatar-placeholder" id="profileAvatarPlaceholder">
+                                    <i class="fas fa-user"></i>
+                                    <span>รูปโปรไฟล์</span>
+                                </div>
+                                <img id="profileAvatarPreview" src="" alt="" style="display:none;">
+                                <div class="avatar-overlay"><i class="fas fa-pen"></i></div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <label class="form-label">ชื่อในเกม</label>
+                                <input type="text" class="form-control" id="profileDisplayName" maxlength="20" required placeholder="ชื่อที่ใช้ในเกม">
+                            </div>
+                        </div>
+                        <input type="file" class="d-none" id="profileAvatarFile" accept="image/*">
+
+                        <!-- Emoji quick picks -->
+                        <label class="avatar-section-label">เลือกอิโมจิ</label>
+                        <div class="avatar-emoji-grid tw-mb-3" id="profileEmojiGrid"><!-- filled by JS --></div>
+
+                        <!-- Upload button -->
+                        <div class="avatar-upload-row">
+                            <button type="button" class="avatar-upload-btn" onclick="triggerProfileAvatarPick()">
+                                <i class="fas fa-upload"></i>อัปโหลดรูปภาพ
+                            </button>
+                            <button type="button" class="avatar-remove-btn" id="profileAvatarRemove" onclick="removeProfileAvatar()" title="ลบรูป">
+                                <i class="fas fa-trash" style="font-size: 0.75rem;"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="button" class="btn btn-orange" onclick="submitProfile(event)">
+                        <i class="fas fa-save me-2"></i>บันทึก
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <!-- Modal เวลาเอง -->
+    <div class="modal fade" id="customTimerModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-stopwatch me-2"></i>ตั้งเวลาเอง</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+                </div>
+                <div class="modal-body">
+                    <p style="color: var(--text-3); font-size: 0.85rem;" class="mb-3">เลือกเวลาต่อรอบ</p>
+                    <div class="d-flex align-items-center justify-content-center gap-4">
+                        <button type="button" class="btn btn-ghost" onclick="decreaseCustomTimer()" style="width: 44px; height: 44px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <div class="text-center" style="min-width: 80px;">
+                            <div class="fw-bold" id="customTimerValue" style="font-size: 3.5rem; font-family: 'Noto Serif Thai', serif; line-height: 1;">5</div>
+                            <div style="color: var(--text-3); font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;">นาที</div>
+                        </div>
+                        <button type="button" class="btn btn-ghost" onclick="increaseCustomTimer()" style="width: 44px; height: 44px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <p style="color: var(--text-3); font-size: 0.78rem;" class="mt-3 mb-0 text-center">ช่วงที่กำหนดได้: 1 – 60 นาที</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-bs-dismiss="modal" onclick="cancelCustomTimer()">ยกเลิก</button>
+                    <button type="button" class="btn btn-orange" onclick="confirmCustomTimer()">ใช้เวลานี้</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================== ADMIN PANEL MODAL ======================== -->
+    <div class="modal fade" id="adminPanelModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+            <div class="modal-content" style="border-top: 2px solid #f59e0b;">
+                <div class="modal-header" style="background: rgba(245,158,11,0.06);">
+                    <h5 class="modal-title" style="color: #f59e0b; font-weight: 800;">
+                        <i class="fas fa-crown me-2"></i>จัดการยศ
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+                </div>
+                <div class="modal-body" style="padding: 20px 24px;">
+                    <!-- Search -->
+                    <div class="tw-mb-4">
+                        <label class="form-label">ค้นหาด้วยอีเมล</label>
+                        <div class="d-flex gap-2">
+                            <input type="email" class="form-control" id="adminSearchEmail" placeholder="email@example.com">
+                            <button class="btn btn-ghost flex-shrink-0 fw-bold" onclick="adminSearchUser()" style="min-width:76px;">
+                                <i class="fas fa-search me-1"></i>ค้นหา
+                            </button>
+                        </div>
+                        <div id="adminSearchResult" class="mt-2" style="font-size: 0.85rem;"></div>
+                    </div>
+                    <!-- Room players quick-pick -->
+                    <div id="adminRoomPlayers">
+                        <label class="form-label">ผู้เล่นในห้อง</label>
+                        <div id="adminRoomPlayersList" class="d-flex flex-column gap-2"></div>
+                    </div>
+                    <!-- Rank editor -->
+                    <div id="adminRankEditor" style="display:none;" class="tw-mb-1">
+                        <div style="background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); border-radius: var(--radius-md); padding: 16px;">
+                            <!-- Target info -->
+                            <div class="d-flex align-items-center gap-3 tw-mb-3">
+                                <div id="adminTargetAvatar" style="flex-shrink:0;"></div>
+                                <div>
+                                    <div class="fw-bold" id="adminTargetName" style="font-size:0.97rem;"></div>
+                                    <div style="font-size:0.78rem;color:var(--text-3);" id="adminTargetEmail"></div>
+                                    <div id="adminCurrentRankDisplay" class="mt-1"></div>
+                                </div>
+                            </div>
+                            <!-- Rank name -->
+                            <div class="mb-3">
+                                <label class="form-label">ชื่อยศ <span style="color:var(--text-3);font-size:0.72rem;">(เว้นว่าง = ลบยศ)</span></label>
+                                <input type="text" class="form-control" id="adminRankName" maxlength="20" placeholder="เช่น ราชา · MVP · ตัวแม่"
+                                    oninput="updateRankPreview()">
+                            </div>
+                            <!-- Color presets -->
+                            <div class="mb-3">
+                                <label class="form-label">สียศ</label>
+                                <div class="d-flex flex-wrap gap-2 tw-mb-2" id="rankColorPresets"></div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <input type="color" class="form-control form-control-color" id="adminRankColor" value="#f59e0b"
+                                        style="width:40px;height:34px;padding:2px 4px;border-radius:8px;cursor:pointer;border:1px solid var(--border);"
+                                        oninput="onCustomColorInput(this.value)">
+                                    <span style="font-size:0.8rem;color:var(--text-2);">กำหนดเอง</span>
+                                </div>
+                            </div>
+                            <!-- Preview -->
+                            <div class="d-flex align-items-center gap-2 tw-mb-3 p-2" style="background:var(--surface-3); border-radius:8px; min-height: 36px;">
+                                <span style="color:var(--text-3);font-size:0.75rem;flex-shrink:0;">ตัวอย่าง:</span>
+                                <span id="adminRankNamePreview" class="fw-semibold" style="font-size:0.9rem;"></span>
+                                <span id="adminRankBadgePreview" class="rank-badge"></span>
+                            </div>
+                            <!-- Actions -->
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-orange flex-grow-1 fw-bold" onclick="adminApplyRank()">
+                                    <i class="fas fa-save me-2"></i>บันทึกยศ
+                                </button>
+                                <button class="btn btn-ghost" onclick="adminClearTarget()" title="ยกเลิก">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================== SCRIPTS ======================== -->\n    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
-        const socket = io();
-        let guessingModalInstance = null;
-        let categoryModalInstance = null;
-        let confirmEndRoundModalInstance = null;
+    /* ======================= AVATAR PICKER SYSTEM ======================= */
+    const EMOJI_OPTIONS = ['🐱','🐶','🦊','🐼','😎','🤖'];
 
-        // เสียงเอฟเฟกต์ (Web Audio API - ไม่ต้องโหลดไฟล์)
-        let audioCtx = null;
-        function getAudioCtx() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            return audioCtx;
+    let authAvatarState = { type: null, value: null }; // type: 'emoji'|'upload', value: emoji char | dataURL
+    let profileAvatarState = { type: null, value: null };
+
+    function buildAvatarPicker(containerId, state, onEmojiSelect, onUploadClick) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const grid = document.createElement('div');
+        grid.className = 'avatar-emoji-grid tw-mb-3';
+        grid.id = containerId + 'EmojiGrid';
+
+        EMOJI_OPTIONS.forEach(emoji => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'avatar-emoji-btn';
+            btn.textContent = emoji;
+            btn.title = emoji;
+            if (state.type === 'emoji' && state.value === emoji) btn.classList.add('selected');
+            btn.addEventListener('click', () => onEmojiSelect(emoji, containerId));
+            grid.appendChild(btn);
+        });
+
+        const uploadRow = document.createElement('div');
+        uploadRow.className = 'avatar-upload-row';
+
+        const uploadBtn = document.createElement('button');
+        uploadBtn.type = 'button';
+        uploadBtn.className = 'avatar-upload-btn';
+        uploadBtn.innerHTML = '<i class="fas fa-upload"></i>อัปโหลดรูปภาพ';
+        uploadBtn.addEventListener('click', onUploadClick);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'avatar-remove-btn';
+        removeBtn.id = containerId + 'RemoveBtn';
+        removeBtn.title = 'ลบรูป';
+        removeBtn.innerHTML = '<i class="fas fa-trash" style="font-size: 0.75rem;"></i>';
+        removeBtn.style.display = (state.type ? 'flex' : 'none');
+        removeBtn.addEventListener('click', () => {
+            state.type = null; state.value = null;
+            removeBtn.style.display = 'none';
+            refreshAvatarPreview(containerId, state);
+        });
+
+        uploadRow.appendChild(uploadBtn);
+        uploadRow.appendChild(removeBtn);
+
+        container.innerHTML = '';
+        container.appendChild(grid);
+        container.appendChild(uploadRow);
+    }
+
+    function refreshAvatarPreview(containerId, state) {
+        // For auth picker
+        if (containerId === 'authAvatarPicker') {
+            const preview = document.getElementById('authAvatarPicker_preview');
+            if (!preview) return;
+            if (!state.type) {
+                preview.style.background = 'var(--surface-3)';
+                preview.innerHTML = '<div class="avatar-placeholder" style="display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--text-3);"><i class="fas fa-user" style="font-size:1.5rem;"></i><span style="font-size:0.72rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;">รูปโปรไฟล์</span></div><div class="avatar-overlay"><i class="fas fa-pen"></i></div>';
+            } else if (state.type === 'emoji') {
+                preview.style.background = 'var(--surface-3)';
+                preview.innerHTML = `<span style="font-size:2.8rem;position:relative;z-index:1;">${state.value}</span><div class="avatar-overlay"><i class="fas fa-pen"></i></div>`;
+            } else if (state.type === 'upload') {
+                preview.style.background = 'none';
+                preview.innerHTML = `<img src="${state.value}" alt="" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;"><div class="avatar-overlay"><i class="fas fa-pen"></i></div>`;
+            }
+            const removeBtn = document.getElementById(containerId + 'RemoveBtn');
+            if (removeBtn) removeBtn.style.display = state.type ? 'flex' : 'none';
         }
-        function playSound(type) {
+        // For profile picker
+        if (containerId === 'profileAvatarPicker') {
+            const previewImg = document.getElementById('profileAvatarPreview');
+            const placeholder = document.getElementById('profileAvatarPlaceholder');
+            const trigger = document.getElementById('profileAvatarTrigger');
+            if (!trigger) return;
+            // Clear previous emoji span
+            const prevEmoji = trigger.querySelector('.profile-emoji-display');
+            if (prevEmoji) prevEmoji.remove();
+
+            if (!state.type) {
+                if (previewImg) { previewImg.style.display = 'none'; previewImg.src = ''; }
+                if (placeholder) placeholder.style.display = 'flex';
+            } else if (state.type === 'emoji') {
+                if (previewImg) { previewImg.style.display = 'none'; previewImg.src = ''; }
+                if (placeholder) placeholder.style.display = 'none';
+                const span = document.createElement('span');
+                span.className = 'profile-emoji-display';
+                span.style.cssText = 'font-size:2.6rem;position:relative;z-index:1;';
+                span.textContent = state.value;
+                trigger.insertBefore(span, trigger.querySelector('.avatar-overlay'));
+            } else if (state.type === 'upload') {
+                if (placeholder) placeholder.style.display = 'none';
+                if (previewImg) { previewImg.src = state.value; previewImg.style.display = 'block'; }
+            }
+            const removeBtn = document.getElementById('profileAvatarRemove');
+            if (removeBtn) removeBtn.style.display = state.type ? 'flex' : 'none';
+        }
+        // Update emoji grid selected state
+        const gridId = containerId === 'authAvatarPicker' ? 'authAvatarPickerEmojiGrid' : 'profileEmojiGrid';
+        const grid = document.getElementById(gridId);
+        if (grid) {
+            grid.querySelectorAll('.avatar-emoji-btn').forEach(btn => {
+                btn.classList.toggle('selected', state.type === 'emoji' && btn.textContent === state.value);
+            });
+        }
+    }
+
+    function getAvatarValue(state) {
+        if (!state.type) return null;
+        if (state.type === 'emoji') return `emoji:${state.value}`;
+        if (state.type === 'upload') return state.value;
+        return null;
+    }
+
+    // Render an avatar value (emoji: or dataURL) into an <img>-like element
+    function renderAvatarHtml(avatarVal, size = 40) {
+        if (!avatarVal) {
+            return `<div class="rounded-circle d-flex align-items-center justify-content-center"
+                style="width:${size}px;height:${size}px;background:var(--primary);flex-shrink:0;">
+                <i class="fas fa-user text-white" style="font-size:${Math.round(size*0.4)}px;"></i></div>`;
+        }
+        if (avatarVal.startsWith('emoji:')) {
+            const em = avatarVal.slice(6);
+            return `<div class="rounded-circle d-flex align-items-center justify-content-center"
+                style="width:${size}px;height:${size}px;background:var(--surface-3);flex-shrink:0;font-size:${Math.round(size*0.55)}px;">${em}</div>`;
+        }
+        return `<img src="${avatarVal}" class="rounded-circle" style="width:${size}px;height:${size}px;object-fit:cover;flex-shrink:0;">`;
+    }
+
+    // แสดง rank badge สีตามที่กำหนด
+    function rankBadgeHtml(rank) {
+        if (!rank || !rank.name) return '';
+        const color = rank.color || '#f59e0b';
+        return `<span class="rank-badge" style="background:${hexToRgba(color,0.15)};color:${color};border-color:${hexToRgba(color,0.35)};">${rank.name}</span>`;
+    }
+    function hexToRgba(hex, alpha) {
+        const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+        return `rgba(${r},${g},${b},${alpha})`;
+    }
+
+    /* ======================= INIT AUTH PICKER ======================= */
+    function initAuthAvatarPicker() {
+        const container = document.getElementById('authAvatarPicker');
+        if (!container) return;
+
+        // Preview circle
+        const previewWrap = document.createElement('div');
+        previewWrap.className = 'd-flex justify-content-center tw-mb-3';
+        const previewCircle = document.createElement('div');
+        previewCircle.className = 'avatar-trigger';
+        previewCircle.id = 'authAvatarPicker_preview';
+        previewCircle.style.cssText = 'width:80px;height:80px;';
+        previewCircle.innerHTML = '<div class="avatar-placeholder" style="display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--text-3);"><i class="fas fa-user" style="font-size:1.5rem;"></i><span style="font-size:0.72rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;">รูปโปรไฟล์</span></div><div class="avatar-overlay"><i class="fas fa-pen"></i></div>';
+        previewCircle.addEventListener('click', () => document.getElementById('authAvatarFile').click());
+        previewWrap.appendChild(previewCircle);
+        container.appendChild(previewWrap);
+
+        // Emoji label
+        const lbl = document.createElement('div');
+        lbl.className = 'avatar-section-label tw-mb-2';
+        lbl.textContent = 'เลือกอิโมจิ';
+        container.appendChild(lbl);
+
+        // Emoji grid
+        const grid = document.createElement('div');
+        grid.className = 'avatar-emoji-grid tw-mb-3';
+        grid.id = 'authAvatarPickerEmojiGrid';
+        EMOJI_OPTIONS.forEach(emoji => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'avatar-emoji-btn';
+            btn.textContent = emoji;
+            btn.addEventListener('click', () => {
+                authAvatarState.type = 'emoji';
+                authAvatarState.value = emoji;
+                refreshAvatarPreview('authAvatarPicker', authAvatarState);
+            });
+            grid.appendChild(btn);
+        });
+        container.appendChild(grid);
+
+        // Upload row
+        const uploadRow = document.createElement('div');
+        uploadRow.className = 'avatar-upload-row';
+        const uploadBtn = document.createElement('button');
+        uploadBtn.type = 'button';
+        uploadBtn.className = 'avatar-upload-btn';
+        uploadBtn.innerHTML = '<i class="fas fa-upload"></i>อัปโหลดรูปภาพ';
+        uploadBtn.addEventListener('click', () => document.getElementById('authAvatarFile').click());
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'avatar-remove-btn';
+        removeBtn.id = 'authAvatarPickerRemoveBtn';
+        removeBtn.title = 'ลบรูป';
+        removeBtn.style.display = 'none';
+        removeBtn.innerHTML = '<i class="fas fa-trash" style="font-size:0.75rem;"></i>';
+        removeBtn.addEventListener('click', () => {
+            authAvatarState.type = null; authAvatarState.value = null;
+            document.getElementById('authAvatarFile').value = '';
+            refreshAvatarPreview('authAvatarPicker', authAvatarState);
+        });
+        uploadRow.appendChild(uploadBtn);
+        uploadRow.appendChild(removeBtn);
+        container.appendChild(uploadRow);
+    }
+
+    /* ======================= INIT PROFILE EMOJI GRID ======================= */
+    function initProfileEmojiGrid() {
+        const grid = document.getElementById('profileEmojiGrid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        EMOJI_OPTIONS.forEach(emoji => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'avatar-emoji-btn';
+            btn.textContent = emoji;
+            btn.addEventListener('click', () => {
+                profileAvatarState.type = 'emoji';
+                profileAvatarState.value = emoji;
+                refreshAvatarPreview('profileAvatarPicker', profileAvatarState);
+            });
+            grid.appendChild(btn);
+        });
+    }
+
+    function removeProfileAvatar() {
+        profileAvatarState.type = null; profileAvatarState.value = null;
+        document.getElementById('profileAvatarFile').value = '';
+        refreshAvatarPreview('profileAvatarPicker', profileAvatarState);
+    }
+
+    /* ======================= AUDIO ======================= */
+    let audioCtx = null;
+    function getAudioCtx() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        return audioCtx;
+    }
+    function playSound(type) {
+        try {
+            const ctx = getAudioCtx();
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            if (type === 'click') {
+                osc.frequency.setValueAtTime(680, now); osc.type = 'sine';
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+                osc.start(now); osc.stop(now + 0.04);
+            } else if (type === 'start') {
+                osc.type = 'sine'; gain.gain.setValueAtTime(0.13, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                osc.frequency.setValueAtTime(440, now); osc.frequency.setValueAtTime(554, now+0.06); osc.frequency.setValueAtTime(659, now+0.12);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'correct') {
+                osc.type = 'sine'; gain.gain.setValueAtTime(0.16, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                osc.frequency.setValueAtTime(523.25, now); osc.frequency.setValueAtTime(659.25, now + 0.1);
+                osc.start(now); osc.stop(now + 0.25);
+            } else if (type === 'end') {
+                osc.type = 'sine'; gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.frequency.setValueAtTime(392, now); osc.frequency.setValueAtTime(330, now + 0.1);
+                osc.start(now); osc.stop(now + 0.2);
+            }
+        } catch (e) {}
+    }
+
+    /* ======================= STATE ======================= */
+    const socket = io();
+    let guessingModalInstance = null, categoryModalInstance = null;
+    let confirmEndRoundModalInstance = null, customTimerModalInstance = null;
+    let customTimerTempMins = 5, profileModalInstance = null;
+    let authMode = 'login', currentUser = null;
+
+    let gameState = {
+        myId: null, myName: '', roomId: '', isHost: false,
+        players: [], playerNames: {}, playerAvatars: {}, playerRanks: {}, userIds: {},
+        scores: {}, gameState: 'lobby', roundNum: 0,
+        selectedCat: 'ปาร์ตี้', timerSecs: 300,
+        words: {}, guessResults: {}, guessSubmitted: {}, timeUp: false
+    };
+
+    let timerInterval = null, timerRemaining = 0;
+
+    /* ======================= USER PERSISTENCE ======================= */
+    function saveCurrentUser(user) {
+        currentUser = user;
+        try { user ? localStorage.setItem('currentUser', JSON.stringify(user)) : localStorage.removeItem('currentUser'); } catch(e){}
+        syncProfileUI();
+    }
+    function loadCurrentUser() {
+        try { const r = localStorage.getItem('currentUser'); currentUser = r ? JSON.parse(r) : null; } catch(e){ currentUser = null; }
+        syncProfileUI(); syncNameInputsForUser();
+    }
+    function clearCurrentUser() {
+        currentUser = null; try { localStorage.removeItem('currentUser'); } catch(e){}
+        syncProfileUI();
+    }
+    function syncNameInputsForUser() {
+        const hostGroup = document.getElementById('hostNameGroup');
+        const guestGroup = document.getElementById('guestNameGroup');
+        const hostInput = document.getElementById('hostName');
+        const guestInput = document.getElementById('guestName');
+        if (currentUser && currentUser.displayName) {
+            if (hostInput) hostInput.value = currentUser.displayName;
+            if (guestInput) guestInput.value = currentUser.displayName;
+            if (hostGroup) hostGroup.style.display = 'none';
+            if (guestGroup) guestGroup.style.display = 'none';
+        } else {
+            if (hostGroup) hostGroup.style.display = '';
+            if (guestGroup) guestGroup.style.display = '';
+        }
+    }
+    function syncProfileUI() {
+        const menu = document.getElementById('profileMenu');
+        if (!menu) return;
+        const nameEl = document.getElementById('profileName');
+        const avatarEl = document.getElementById('profileAvatar');
+        const adminEntry = document.getElementById('adminMenuEntry');
+        if (currentUser) {
+            menu.style.display = 'block';
+            if (nameEl) nameEl.textContent = currentUser.displayName || currentUser.email || 'ผู้เล่น';
+            if (adminEntry) adminEntry.style.display = currentUser.isAdmin ? 'block' : 'none';
+            if (avatarEl) {
+                const av = currentUser.avatarUrl;
+                if (av && av.startsWith('emoji:')) {
+                    avatarEl.style.background = 'var(--surface-3)';
+                    avatarEl.innerHTML = `<span style="font-size:18px;">${av.slice(6)}</span>`;
+                } else if (av) {
+                    avatarEl.style.background = 'none';
+                    avatarEl.innerHTML = `<img src="${av}" alt="โปรไฟล์" style="width:100%;height:100%;object-fit:cover;">`;
+                } else {
+                    avatarEl.style.background = 'var(--primary)';
+                    avatarEl.innerHTML = '<i class="fas fa-user text-white" style="font-size:12px;"></i>';
+                }
+            }
+        } else {
+            menu.style.display = 'none';
+            if (adminEntry) adminEntry.style.display = 'none';
+        }
+    }
+
+    function logout() {
+        playSound('click'); clearCurrentUser();
+        const hi = document.getElementById('hostName'); const gi = document.getElementById('guestName');
+        if (hi) hi.value = ''; if (gi) gi.value = '';
+        showScreen('auth'); showToast('👋 ออกจากระบบแล้ว');
+    }
+
+    function openProfileModal() {
+        playSound('click');
+        if (!currentUser) { showScreen('auth'); return; }
+        if (!profileModalInstance) profileModalInstance = new bootstrap.Modal(document.getElementById('profileModal'));
+        const nameInput = document.getElementById('profileDisplayName');
+        if (nameInput) nameInput.value = currentUser.displayName || '';
+
+        // Set initial avatar state
+        if (currentUser.avatarUrl && currentUser.avatarUrl.startsWith('emoji:')) {
+            profileAvatarState = { type: 'emoji', value: currentUser.avatarUrl.slice(6) };
+        } else if (currentUser.avatarUrl) {
+            profileAvatarState = { type: 'upload', value: currentUser.avatarUrl };
+        } else {
+            profileAvatarState = { type: null, value: null };
+        }
+        initProfileEmojiGrid();
+        refreshAvatarPreview('profileAvatarPicker', profileAvatarState);
+        profileModalInstance.show();
+    }
+
+    async function submitProfile(event) {
+        if (event) event.preventDefault();
+        if (!currentUser) return;
+        const nameInput = document.getElementById('profileDisplayName');
+        const newName = (nameInput.value || '').trim();
+        if (!newName) { showToast('⚠️ ใส่ชื่อที่ใช้ในเกม'); return; }
+
+        // Check if there's a new file upload
+        const fileInput = document.getElementById('profileAvatarFile');
+        if (fileInput && fileInput.files && fileInput.files[0]) {
+            const file = fileInput.files[0];
+            if (file.size > 2 * 1024 * 1024) { showToast('⚠️ รูปใหญ่เกินไป'); return; }
             try {
-                const ctx = getAudioCtx();
-                const now = ctx.currentTime;
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
+                const url = await readFileAsDataURL(file);
+                profileAvatarState.type = 'upload'; profileAvatarState.value = url;
+            } catch(e) { showToast('ไม่สามารถอ่านไฟล์รูปได้'); return; }
+        }
 
-                if (type === 'click') {
-                    osc.frequency.setValueAtTime(680, now);
-                    osc.type = 'sine';
-                    gain.gain.setValueAtTime(0.12, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
-                    osc.start(now);
-                    osc.stop(now + 0.04);
-                } else if (type === 'start') {
-                    osc.type = 'sine';
-                    gain.gain.setValueAtTime(0.15, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
-                    osc.frequency.setValueAtTime(440, now);
-                    osc.frequency.setValueAtTime(554, now + 0.06);
-                    osc.frequency.setValueAtTime(659, now + 0.12);
-                    osc.start(now);
-                    osc.stop(now + 0.2);
-                } else if (type === 'correct') {
-                    osc.type = 'sine';
-                    gain.gain.setValueAtTime(0.18, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-                    osc.frequency.setValueAtTime(523.25, now);
-                    osc.frequency.setValueAtTime(659.25, now + 0.1);
-                    osc.start(now);
-                    osc.stop(now + 0.25);
-                } else if (type === 'end') {
-                    osc.type = 'sine';
-                    gain.gain.setValueAtTime(0.12, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-                    osc.frequency.setValueAtTime(392, now);
-                    osc.frequency.setValueAtTime(330, now + 0.1);
-                    osc.start(now);
-                    osc.stop(now + 0.2);
+        currentUser.displayName = newName;
+        currentUser.avatarUrl = getAvatarValue(profileAvatarState);
+        saveCurrentUser(currentUser);
+        const hi = document.getElementById('hostName'); const gi = document.getElementById('guestName');
+        if (hi) hi.value = currentUser.displayName; if (gi) gi.value = currentUser.displayName;
+        showToast('✅ อัปเดตโปรไฟล์แล้ว');
+        if (profileModalInstance) profileModalInstance.hide();
+    }
+
+    function triggerProfileAvatarPick() {
+        document.getElementById('profileAvatarFile').click();
+    }
+
+    function requireLoginOr(fn) {
+        if (!currentUser) { showToast('⚠️ กรุณาเข้าสู่ระบบก่อน'); openLoginModal(); return; }
+        fn();
+    }
+
+    /* ======================= LOADING ======================= */
+    function showLoading() {
+        const el = document.getElementById('loadingOverlay');
+        if (el) { el.classList.remove('hidden'); el.style.display = 'flex'; }
+        const vid = document.getElementById('loadingVideo');
+        if (vid) { try { vid.currentTime = 0; } catch(e){} vid.play().catch(()=>{}); }
+    }
+    function hideLoading() {
+        const el = document.getElementById('loadingOverlay');
+        if (!el) return;
+        el.classList.add('hidden');
+        const vid = document.getElementById('loadingVideo');
+        if (vid) vid.pause();
+        setTimeout(() => { el.style.display = 'none'; }, 300);
+    }
+
+    /* ======================= NAVIGATION ======================= */
+    function goToHome() { playSound('click'); showScreen('home'); }
+    function goToCreateRoom() { playSound('click'); showScreen('create'); }
+    function goToJoinRoom() { playSound('click'); showScreen('join'); }
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(`screen-${screenId}`).classList.add('active');
+    }
+    function showToast(message) {
+        const t = document.getElementById('toast');
+        t.textContent = message; t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 3000);
+    }
+
+    /* ======================= AUTH ======================= */
+    function setAuthMode(mode) {
+        authMode = mode === 'signup' ? 'signup' : 'login';
+        document.getElementById('authTabLogin').classList.toggle('active', authMode === 'login');
+        document.getElementById('authTabSignup').classList.toggle('active', authMode === 'signup');
+        const displayGroup = document.getElementById('authDisplayNameGroup');
+        const avatarGroup = document.getElementById('authAvatarGroup');
+        if (displayGroup) displayGroup.style.display = authMode === 'signup' ? 'block' : 'none';
+        if (avatarGroup) avatarGroup.style.display = authMode === 'signup' ? 'block' : 'none';
+        const submitBtn = document.getElementById('authSubmitBtn');
+        if (submitBtn) {
+            submitBtn.innerHTML = authMode === 'signup'
+                ? '<i class="fas fa-user-plus me-2"></i>สมัครสมาชิก'
+                : '<i class="fas fa-sign-in-alt me-2"></i>เข้าสู่ระบบ';
+        }
+        // Reset auth avatar state when switching
+        authAvatarState = { type: null, value: null };
+        refreshAvatarPreview('authAvatarPicker', authAvatarState);
+    }
+
+    function openLoginModal() {
+        playSound('click'); showScreen('auth'); setAuthMode('login');
+        document.getElementById('authForm').reset();
+    }
+
+    function readFileAsDataURL(file) {
+        return new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result); r.onerror = rej;
+            r.readAsDataURL(file);
+        });
+    }
+
+    async function submitAuth(event) {
+        if (event) event.preventDefault();
+        const email = document.getElementById('authEmail').value.trim();
+        const password = document.getElementById('authPassword').value;
+
+        try {
+            let res;
+            if (authMode === 'signup') {
+                const displayName = (document.getElementById('authDisplayName').value || '').trim();
+                if (!displayName) { showToast('⚠️ ใส่ชื่อที่ใช้ในเกม'); return; }
+                // Check file upload
+                const fileInput = document.getElementById('authAvatarFile');
+                if (fileInput && fileInput.files && fileInput.files[0]) {
+                    const file = fileInput.files[0];
+                    if (file.size > 2*1024*1024) { showToast('⚠️ รูปใหญ่เกินไป'); return; }
+                    authAvatarState.type = 'upload';
+                    authAvatarState.value = await readFileAsDataURL(file);
                 }
-            } catch (e) { /* เบราว์เซอร์ปิดเสียงหรือไม่รองรับ */ }
-        }
-
-        let gameState = {
-            myId: null,
-            myName: '',
-            roomId: '',
-            isHost: false,
-            players: [],
-            playerNames: {},
-            scores: {},
-            gameState: 'lobby',
-            roundNum: 0,
-            selectedCat: 'ปาร์ตี้',
-            timerSecs: 300,
-            words: {},
-            guessResults: {},
-            guessSubmitted: {},
-            timeUp: false
-        };
-
-        let timerInterval = null;
-        let timerRemaining = 0;
-
-        // Loading overlay (วิดีโอพื้นดำ = โปร่งใส จาก mix-blend-mode: screen)
-        function showLoading() {
-            const el = document.getElementById('loadingOverlay');
-            if (el) { el.classList.remove('hidden'); el.style.display = 'flex'; }
-            const vid = document.getElementById('loadingVideo');
-            if (vid) {
-                try { vid.currentTime = 0; } catch (e) {}
-                vid.play().catch(() => {});
-            }
-        }
-        function hideLoading() {
-            const el = document.getElementById('loadingOverlay');
-            if (!el) return;
-            el.classList.add('hidden');
-            const vid = document.getElementById('loadingVideo');
-            if (vid) { vid.pause(); vid.onended = null; }
-            setTimeout(() => { el.style.display = 'none'; }, 150);
-        }
-
-        // UI Navigation
-        function goToHome() { playSound('click'); showScreen('home'); }
-        function goToCreateRoom() { playSound('click'); showScreen('create'); }
-        function goToJoinRoom() { playSound('click'); showScreen('join'); }
-
-        function showScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(`screen-${screenId}`).classList.add('active');
-        }
-
-        function showToast(message) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.style.display = 'block';
-            setTimeout(() => toast.style.display = 'none', 3000);
-        }
-
-        function toggleTheme() {
-            playSound('click');
-            const html = document.documentElement;
-            const isDark = html.getAttribute('data-bs-theme') === 'dark';
-            const newTheme = isDark ? 'light' : 'dark';
-            html.setAttribute('data-bs-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            updateThemeIcon(newTheme);
-            showToast(isDark ? '☀️ ธีมสว่าง' : '🌙 ธีมมืด');
-        }
-        function updateThemeIcon(theme) {
-            const icon = document.getElementById('themeIcon');
-            if (icon) {
-                icon.className = theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
-            }
-        }
-        function initTheme() {
-            const saved = localStorage.getItem('theme');
-            const html = document.documentElement;
-            if (saved === 'light' || saved === 'dark') {
-                html.setAttribute('data-bs-theme', saved);
-            }
-            updateThemeIcon(html.getAttribute('data-bs-theme') || 'dark');
-        }
-        
-        function openCategoryModal() {
-            playSound('click');
-            if (!categoryModalInstance) {
-                categoryModalInstance = new bootstrap.Modal(document.getElementById('categoryModal'));
-            }
-            syncCategorySelection();
-            categoryModalInstance.show();
-        }
-        function selectCategoryFromModal(cat) {
-            playSound('click');
-            gameState.selectedCat = cat;
-            socket.emit('change-category', { category: cat });
-            syncCategorySelection();
-            if (categoryModalInstance) categoryModalInstance.hide();
-            showToast('✅ เลือก: ' + cat);
-        }
-        function selectCategory(cat) {
-            gameState.selectedCat = cat;
-            socket.emit('change-category', { category: cat });
-            syncCategorySelection();
-            showToast('✅ เลือก: ' + cat);
-        }
-
-        function createRoom() {
-            playSound('click');
-            const name = document.getElementById('hostName').value.trim();
-            if (!name) { showToast('⚠️ ใส่ชื่อก่อนนะ!'); return; }
-
-            showLoading();
-            gameState.myName = name;
-            gameState.roomId = generateRoomCode();
-            gameState.isHost = true;
-            gameState.players = [];
-            gameState.playerNames = {};
-            gameState.myId = null; // reset เพื่อรอ your-player-id ใหม่
-
-            socket.emit('join-room', {
-                roomId: gameState.roomId,
-                playerName: name,
-                selectedCat: gameState.selectedCat,
-                timerSecs: gameState.timerSecs
-            });
-
-            showLobbyHost();
-            showToast('✅ สร้างห้องสำเร็จ!');
-            setTimeout(hideLoading, 1800);
-        }
-
-        let pendingJoinRoom = false;
-        function joinRoom() {
-            playSound('click');
-            const name = document.getElementById('guestName').value.trim();
-            const code = document.getElementById('roomCode').value.trim().toUpperCase();
-            if (!name) { showToast('⚠️ ใส่ชื่อก่อนนะ!'); return; }
-            if (code.length !== 4) { showToast('⚠️ รหัส 4 ตัวอักษร!'); return; }
-
-            gameState.myName = name;
-            gameState.roomId = code;
-            gameState.isHost = false;
-            pendingJoinRoom = true;
-            showLoading();
-
-            socket.emit('join-room', {
-                roomId: code,
-                playerName: name
-            });
-        }
-
-        function generateRoomCode() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            let code = '';
-            for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
-            return code;
-        }
-
-        function showLobbyHost() {
-            document.getElementById('displayRoomCode').textContent = gameState.roomId;
-            buildQR();
-            syncCategorySelection();
-            syncTimerSelection();
-            updatePlayersList();
-            showScreen('lobby');
-        }
-        const CATEGORY_IMAGES = { 'ปาร์ตี้': '/cat-party.png', 'ออฟฟิศ': '/cat-office.png' };
-        function syncCategorySelection() {
-            const cat = gameState.selectedCat || 'ปาร์ตี้';
-            const label = document.getElementById('selectedCategoryLabel');
-            const img = document.getElementById('selectedCategoryImg');
-            if (label) label.textContent = cat;
-            if (img && CATEGORY_IMAGES[cat]) {
-                img.src = CATEGORY_IMAGES[cat];
-                img.alt = cat;
-            }
-            document.querySelectorAll('.category-modal-item').forEach(el => {
-                el.classList.toggle('selected', el.getAttribute('data-value') === cat);
-            });
-        }
-        function syncTimerSelection() {
-            const t180 = document.getElementById('timer180');
-            if (!t180) return;
-            const secs = gameState.timerSecs;
-            t180.checked = (secs === 180);
-            document.getElementById('timer300').checked = (secs === 300);
-            document.getElementById('timer480').checked = (secs === 480);
-        }
-
-        function showLobbyGuest() {
-            document.getElementById('guestRoomCode').textContent = gameState.roomId;
-            updateGuestPlayersList();
-            showScreen('guest-lobby');
-        }
-
-        function buildQR() {
-            const container = document.getElementById('qrContainer');
-            container.innerHTML = '';
-            new QRCode(container, {
-                text: window.location.href.split('?')[0] + '?room=' + gameState.roomId,
-                width: 96,
-                height: 96,
-                colorDark: '#000000',
-                colorLight: '#ffffff'
-            });
-        }
-
-        function copyRoomCode() {
-            playSound('click');
-            navigator.clipboard.writeText(gameState.roomId);
-            showToast('📋 คัดลอก: ' + gameState.roomId);
-        }
-
-        function changeTimer(secs) {
-            playSound('click');
-            gameState.timerSecs = secs;
-            socket.emit('change-timer', { timerSecs: secs });
-        }
-
-        function updatePlayersList() {
-            const list = document.getElementById('playersList');
-            document.getElementById('playerCount').textContent = gameState.players.length;
-            list.innerHTML = gameState.players.map(pid => `
-                <div class="card card-body tw-p-2 tw-mb-2" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="rounded-circle bg-primary tw-p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                            <i class="fas fa-user text-white"></i>
-                        </div>
-                        <span class="flex-grow-1">${gameState.playerNames[pid]}${pid === gameState.myId ? ' <small class="text-muted">(คุณ)</small>' : ''}</span>
-                        <span class="badge bg-success"><i class="fas fa-check"></i></span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function updateGuestPlayersList() {
-            const list = document.getElementById('guestPlayersList');
-            document.getElementById('guestPlayerCount').textContent = gameState.players.length;
-            list.innerHTML = gameState.players.map(pid => `
-                <div class="card card-body tw-p-2 tw-mb-2" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="rounded-circle bg-primary tw-p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                            <i class="fas fa-user text-white"></i>
-                        </div>
-                        <span>${gameState.playerNames[pid]}${pid === gameState.myId ? ' <small class="text-muted">(คุณ)</small>' : ''}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function startGame() {
-            playSound('click');
-            if (gameState.players.length < 2) {
-                showToast('⚠️ ต้องมี 2+ คน!');
-                return;
-            }
-            playSound('start');
-            socket.emit('start-game');
-        }
-
-        function renderGameScreen() {
-            document.getElementById('hostControls').style.display = gameState.isHost ? 'block' : 'none';
-
-            const grid = document.getElementById('wordsGrid');
-            grid.innerHTML = gameState.players.map(pid => {
-                const isMe = pid === gameState.myId;
-                const word = isMe ? '' : (gameState.words[pid] || '');
-                const displayWord = isMe ? 'คำของฉัน (ห้ามดู)' : (word || '?');
-                return `
-                    <div class="col-md-6 col-lg-4">
-                        <div class="word-card-wrapper ${isMe ? 'mine' : ''}">
-                            <div class="word-card">
-                                <h4 class="tw-mb-0 word-text">${displayWord}</h4>
-                            </div>
-                            <div class="word-card-footer">
-                                <i class="fas fa-user"></i>
-                                <span class="word-label">${gameState.playerNames[pid] || '?'}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            updateScoresDisplay();
-            showScreen('game');
-        }
-
-        function updateScoresDisplay() {
-            // ไม่แสดงคะแนน
-        }
-
-        function showConfirmEndRound() {
-            playSound('click');
-            if (!confirmEndRoundModalInstance) {
-                confirmEndRoundModalInstance = new bootstrap.Modal(document.getElementById('confirmEndRoundModal'));
-            }
-            confirmEndRoundModalInstance.show();
-        }
-        function doEndRound() {
-            playSound('end');
-            if (confirmEndRoundModalInstance) confirmEndRoundModalInstance.hide();
-            socket.emit('end-round', { timeUp: gameState.timeUp === true });
-        }
-        function updateEndRoundButton() {
-            const btn = document.getElementById('endRoundBtn');
-            const text = document.getElementById('endRoundBtnText');
-            if (!btn || !text) return;
-            const n = gameState.players.length;
-            const count = gameState.players.filter(pid => gameState.guessSubmitted[pid]).length;
-            if (gameState.timeUp)
-                text.textContent = `หมดเวลา (${count}/${n} ทายแล้ว) — สิ้นสุดรอบ`;
-            else if (gameState.allHaveGuessed === true)
-                text.textContent = `ทุกคนทายครบ — สิ้นสุดรอบ`;
-            else
-                text.textContent = `สิ้นสุดรอบ / เฉลยคำ (${count}/${n} ทายแล้ว)`;
-        }
-
-        function renderGuessingScreen() {
-            const container = document.getElementById('guessingCards');
-            const isRevealPhase = gameState.revealPhase === true;
-
-            container.innerHTML = gameState.players.map(targetPid => {
-                const isMe = targetPid === gameState.myId;
-                const actualWord = gameState.words[targetPid];
-
-                // --- ช่วงเฉลย (หลัง Host กด สิ้นสุดรอบ) ---
-                if (isRevealPhase) {
-                    const label = isMe ? 'คำบนหัวของฉัน' : gameState.playerNames[targetPid];
-                    return `
-                        <div class="card tw-mb-3" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                            <div class="card-body">
-                                <p class="card-title fw-bold tw-mb-2">${label}</p>
-                                <p class="tw-mb-0"><strong>${actualWord || '?'}</strong></p>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                // --- ช่วงทาย (ก่อนโฮสต์กดสิ้นสุดรอบ) ---
-                if (isMe) {
-                    const myResult = gameState.guessResults[`${gameState.myId}_${gameState.myId}`];
-                    if (myResult) {
-                        // ทายแล้ว — แสดง pending
-                        return `
-                            <div class="card tw-mb-3 border-warning" style="background: rgba(249, 115, 22, 0.1);">
-                                <div class="card-body">
-                                    <p class="card-title fw-bold tw-mb-1">ทายคำบนหัวของตัวเอง</p>
-                                    <p class="text-muted tw-mb-0">✔ ส่งคำทายแล้ว รอโฮสต์สิ้นสุดรอบ...</p>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    return `
-                        <div class="card tw-mb-3 border-warning" style="background: rgba(249, 115, 22, 0.1);">
-                            <div class="card-body">
-                                <p class="card-title fw-bold tw-mb-3">ทายคำบนหัวของตัวเอง</p>
-                                <div class="guess-input-row">
-                                    <input type="text" id="guess-input" placeholder="ทายคำ..." class="form-control">
-                                    <button type="button" id="guess-btn" class="btn btn-orange tw-transition tw-hover-scale" onclick="submitGuess('${targetPid}')"><i class="fas fa-paper-plane"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                return `
-                    <div class="card tw-mb-3" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); opacity: 0.6;">
-                        <div class="card-body">
-                            <small class="text-muted">${gameState.guessSubmitted[targetPid] ? '✔ ทายแล้ว' : 'รอให้ ' + gameState.playerNames[targetPid] + ' ทาย...'}</small>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            // ปุ่ม modal footer
-            const hostNextBtn = document.getElementById('hostNextBtn');
-            const closeGuessingBtn = document.getElementById('closeGuessingBtn');
-            const hostEndBtn = document.getElementById('hostEndRoundModalBtn');
-            if (isRevealPhase) {
-                if (hostNextBtn) hostNextBtn.style.display = gameState.isHost ? 'block' : 'none';
-                if (closeGuessingBtn) closeGuessingBtn.style.display = !gameState.isHost ? 'block' : 'none';
-                if (hostEndBtn) hostEndBtn.style.display = 'none';
+                const avatarUrl = getAvatarValue(authAvatarState);
+                res = await fetch('/api/signup', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, displayName, avatarUrl })
+                });
             } else {
-                if (hostNextBtn) hostNextBtn.style.display = 'none';
-                if (closeGuessingBtn) closeGuessingBtn.style.display = 'none';
-                if (hostEndBtn) hostEndBtn.style.display = gameState.isHost ? 'block' : 'none';
+                res = await fetch('/api/login', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
             }
-
-            if (!guessingModalInstance) {
-                guessingModalInstance = new bootstrap.Modal(document.getElementById('guessingModal'), { backdrop: 'static', keyboard: false });
+            const data = await res.json();
+            if (!res.ok) { showToast(data && data.error ? data.error : 'เกิดข้อผิดพลาด'); return; }
+            if (data.user) {
+                saveCurrentUser(data.user);
+                const hi = document.getElementById('hostName'); const gi = document.getElementById('guestName');
+                if (hi) hi.value = data.user.displayName || ''; if (gi) gi.value = data.user.displayName || '';
+                showToast(authMode === 'signup' ? '🎉 สมัครสมาชิกสำเร็จ' : '✅ เข้าสู่ระบบสำเร็จ');
+                showScreen('home');
             }
-            const modalEl = document.getElementById('guessingModal');
-            if (modalEl && !modalEl.classList.contains('show')) {
-                guessingModalInstance.show();
+        } catch(e) { showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ'); }
+    }
+
+    /* ======================= THEME ======================= */
+    function toggleTheme() {
+        playSound('click');
+        const html = document.documentElement;
+        const isDark = html.getAttribute('data-bs-theme') === 'dark';
+        const t = isDark ? 'light' : 'dark';
+        html.setAttribute('data-bs-theme', t);
+        localStorage.setItem('theme', t);
+        updateThemeIcon(t);
+        showToast(isDark ? '☀️ ธีมสว่าง' : '🌙 ธีมมืด');
+    }
+    function updateThemeIcon(t) {
+        const i = document.getElementById('themeIcon');
+        if (i) i.className = t === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+    }
+    function initTheme() {
+        const saved = localStorage.getItem('theme');
+        const html = document.documentElement;
+        if (saved === 'light' || saved === 'dark') html.setAttribute('data-bs-theme', saved);
+        updateThemeIcon(html.getAttribute('data-bs-theme') || 'dark');
+    }
+
+    /* ======================= CATEGORY ======================= */
+    function openCategoryModal() {
+        playSound('click');
+        if (!categoryModalInstance) categoryModalInstance = new bootstrap.Modal(document.getElementById('categoryModal'));
+        syncCategorySelection(); categoryModalInstance.show();
+    }
+    function selectCategoryFromModal(cat) {
+        playSound('click'); gameState.selectedCat = cat;
+        socket.emit('change-category', { category: cat });
+        syncCategorySelection(); if (categoryModalInstance) categoryModalInstance.hide();
+        showToast('✅ เลือก: ' + cat);
+    }
+    const CATEGORY_IMAGES = { 'ปาร์ตี้': '/cat-party.png', 'ออฟฟิศ': '/cat-office.png' };
+    function syncCategorySelection() {
+        const cat = gameState.selectedCat || 'ปาร์ตี้';
+        const label = document.getElementById('selectedCategoryLabel');
+        const img = document.getElementById('selectedCategoryImg');
+        if (label) label.textContent = cat;
+        if (img && CATEGORY_IMAGES[cat]) { img.src = CATEGORY_IMAGES[cat]; img.alt = cat; }
+        document.querySelectorAll('.category-modal-item').forEach(el => {
+            el.classList.toggle('selected', el.getAttribute('data-value') === cat);
+        });
+    }
+
+    /* ======================= ROOM ======================= */
+    function createRoom() {
+        playSound('click');
+        let name = document.getElementById('hostName').value.trim();
+        if (!name && currentUser) name = currentUser.displayName || '';
+        if (!name) { showToast('⚠️ ใส่ชื่อก่อนนะ!'); return; }
+        showLoading();
+        gameState.myName = name; gameState.roomId = generateRoomCode();
+        gameState.isHost = true; gameState.players = []; gameState.playerNames = {}; gameState.myId = null;
+        socket.emit('join-room', {
+            roomId: gameState.roomId, playerName: name,
+            userId: currentUser ? currentUser.id : null,
+            avatarUrl: currentUser ? currentUser.avatarUrl : null,
+            selectedCat: gameState.selectedCat, timerSecs: gameState.timerSecs
+        });
+        showLobbyHost(); showToast('✅ สร้างห้องสำเร็จ!');
+        setTimeout(hideLoading, 1800);
+    }
+
+    let pendingJoinRoom = false;
+    function joinRoom() {
+        playSound('click');
+        let name = document.getElementById('guestName').value.trim();
+        const code = document.getElementById('roomCode').value.trim().toUpperCase();
+        if (!name && currentUser) name = currentUser.displayName || '';
+        if (!name) { showToast('⚠️ ใส่ชื่อก่อนนะ!'); return; }
+        if (code.length !== 4) { showToast('⚠️ รหัส 4 ตัวอักษร!'); return; }
+        gameState.myName = name; gameState.roomId = code; gameState.isHost = false;
+        pendingJoinRoom = true; showLoading();
+        socket.emit('join-room', {
+            roomId: code, playerName: name,
+            userId: currentUser ? currentUser.id : null,
+            avatarUrl: currentUser ? currentUser.avatarUrl : null
+        });
+    }
+
+    function generateRoomCode() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let code = '';
+        for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random()*chars.length)];
+        return code;
+    }
+
+    function showLobbyHost() {
+        document.getElementById('displayRoomCode').textContent = gameState.roomId;
+        buildQR(); syncCategorySelection(); syncTimerSelection(); updatePlayersList();
+        showScreen('lobby');
+    }
+    function syncTimerSelection() {
+        const t180 = document.getElementById('timer180'); if (!t180) return;
+        const secs = gameState.timerSecs;
+        t180.checked = (secs===180);
+        document.getElementById('timer300').checked = (secs===300);
+        document.getElementById('timer480').checked = (secs===480);
+        const tCustom = document.getElementById('timerCustom');
+        const customLabel = document.getElementById('timerCustomLabel');
+        const isCustom = (secs!==180&&secs!==300&&secs!==480);
+        if (tCustom) tCustom.checked = isCustom;
+        if (customLabel) {
+            const mins = Math.max(1, Math.round(secs/60));
+            customLabel.textContent = isCustom ? `กำหนดเอง (${mins} นาที)` : 'กำหนดเอง';
+        }
+    }
+    function showLobbyGuest() {
+        document.getElementById('guestRoomCode').textContent = gameState.roomId;
+        updateGuestPlayersList(); showScreen('guest-lobby');
+    }
+    function buildQR() {
+        const c = document.getElementById('qrContainer'); c.innerHTML = '';
+        new QRCode(c, {
+            text: window.location.href.split('?')[0]+'?room='+gameState.roomId,
+            width: 96, height: 96, colorDark: '#000000', colorLight: '#ffffff'
+        });
+    }
+    function copyRoomCode() {
+        playSound('click'); navigator.clipboard.writeText(gameState.roomId);
+        showToast('📋 คัดลอก: ' + gameState.roomId);
+    }
+    function changeTimer(secs) {
+        playSound('click'); gameState.timerSecs = secs;
+        socket.emit('change-timer', { timerSecs: secs }); syncTimerSelection();
+    }
+    function openCustomTimer() {
+        playSound('click');
+        const prev = gameState.timerSecs || 300;
+        customTimerTempMins = Math.max(1, Math.min(60, Math.round(prev/60)));
+        const v = document.getElementById('customTimerValue'); if (v) v.textContent = customTimerTempMins;
+        if (!customTimerModalInstance) customTimerModalInstance = new bootstrap.Modal(document.getElementById('customTimerModal'));
+        customTimerModalInstance.show();
+    }
+    function increaseCustomTimer() {
+        if (customTimerTempMins<60) { customTimerTempMins++; const v=document.getElementById('customTimerValue'); if(v)v.textContent=customTimerTempMins; }
+    }
+    function decreaseCustomTimer() {
+        if (customTimerTempMins>1) { customTimerTempMins--; const v=document.getElementById('customTimerValue'); if(v)v.textContent=customTimerTempMins; }
+    }
+    function cancelCustomTimer() { if(customTimerModalInstance)customTimerModalInstance.hide(); syncTimerSelection(); }
+    function confirmCustomTimer() {
+        if (customTimerTempMins<1||customTimerTempMins>60) { showToast('⚠️ 1-60 นาที'); return; }
+        changeTimer(customTimerTempMins*60);
+        if (customTimerModalInstance) customTimerModalInstance.hide();
+        showToast(`⏱️ ตั้งเวลา: ${customTimerTempMins} นาที`);
+    }
+
+    function updatePlayersList() {
+        const list = document.getElementById('playersList');
+        document.getElementById('playerCount').textContent = gameState.players.length;
+        list.innerHTML = gameState.players.map(pid => `
+            <div class="player-row tw-mb-2">
+                ${renderAvatarHtml(gameState.playerAvatars[pid], 38)}
+                <div class="flex-grow-1 d-flex align-items-center flex-wrap gap-2">
+                    <span class="fw-semibold">${gameState.playerNames[pid]}${pid===gameState.myId?' <small style="color:var(--text-3);">(คุณ)</small>':''}</span>
+                    ${rankBadgeHtml(gameState.playerRanks[pid])}
+                </div>
+                <span style="width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block;flex-shrink:0;"></span>
+            </div>`).join('');
+    }
+    function updateGuestPlayersList() {
+        const list = document.getElementById('guestPlayersList');
+        document.getElementById('guestPlayerCount').textContent = gameState.players.length;
+        list.innerHTML = gameState.players.map(pid => `
+            <div class="player-row tw-mb-2">
+                ${renderAvatarHtml(gameState.playerAvatars[pid], 38)}
+                <div class="flex-grow-1 d-flex align-items-center flex-wrap gap-2">
+                    <span class="fw-semibold">${gameState.playerNames[pid]}${pid===gameState.myId?' <small style="color:var(--text-3);">(คุณ)</small>':''}</span>
+                    ${rankBadgeHtml(gameState.playerRanks[pid])}
+                </div>
+            </div>`).join('');
+    }
+
+    function startGame() {
+        playSound('click');
+        if (gameState.players.length < 2) { showToast('⚠️ ต้องมี 2+ คน!'); return; }
+        playSound('start'); socket.emit('start-game');
+    }
+
+    function renderGameScreen() {
+        document.getElementById('hostControls').style.display = gameState.isHost ? 'block' : 'none';
+        const grid = document.getElementById('wordsGrid');
+        grid.innerHTML = gameState.players.map(pid => {
+            const isMe = pid === gameState.myId;
+            const word = isMe ? '' : (gameState.words[pid] || '');
+            const displayWord = isMe ? 'คำของฉัน (ห้ามดู)' : (word || '?');
+            const av = gameState.playerAvatars[pid];
+            const avatarHtml = av && av.startsWith('emoji:')
+                ? `<span style="font-size:1.1rem;">${av.slice(6)}</span>`
+                : (av ? `<img src="${av}" class="rounded-circle" style="width:22px;height:22px;object-fit:cover;">` : `<i class="fas fa-user"></i>`);
+            const rank = gameState.playerRanks[pid];
+            return `
+                <div class="col-md-6 col-lg-4">
+                    <div class="word-card-wrapper ${isMe?'mine':''}">
+                        <div class="word-card">
+                            <h4 class="tw-mb-0 word-text">${displayWord}</h4>
+                        </div>
+                        <div class="word-card-footer">
+                            ${avatarHtml}
+                            <span class="word-label">${gameState.playerNames[pid]||'?'}</span>
+                            ${rankBadgeHtml(rank)}
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+        updateScoresDisplay(); showScreen('game');
+    }
+
+    function updateScoresDisplay() {}
+
+    function showConfirmEndRound() {
+        playSound('click');
+        if (!confirmEndRoundModalInstance) confirmEndRoundModalInstance = new bootstrap.Modal(document.getElementById('confirmEndRoundModal'));
+        confirmEndRoundModalInstance.show();
+    }
+    function doEndRound() {
+        playSound('end');
+        if (confirmEndRoundModalInstance) confirmEndRoundModalInstance.hide();
+        socket.emit('end-round', { timeUp: gameState.timeUp === true });
+    }
+    function updateEndRoundButton() {
+        const btn = document.getElementById('endRoundBtn'); const text = document.getElementById('endRoundBtnText');
+        if (!btn||!text) return;
+        const n = gameState.players.length;
+        const count = gameState.players.filter(pid => gameState.guessSubmitted[pid]).length;
+        if (gameState.timeUp) text.textContent = `หมดเวลา (${count}/${n} ทายแล้ว) — สิ้นสุดรอบ`;
+        else if (gameState.allHaveGuessed===true) text.textContent = `ทุกคนทายครบ — สิ้นสุดรอบ`;
+        else text.textContent = `สิ้นสุดรอบ / เฉลยคำ (${count}/${n} ทายแล้ว)`;
+    }
+
+    function renderGuessingScreen() {
+        const container = document.getElementById('guessingCards');
+        const isRevealPhase = gameState.revealPhase === true;
+        container.innerHTML = gameState.players.map(targetPid => {
+            const isMe = targetPid === gameState.myId;
+            const actualWord = gameState.words[targetPid];
+            if (isRevealPhase) {
+                const label = isMe ? 'คำบนหัวของฉัน' : gameState.playerNames[targetPid];
+                return `<div class="card tw-mb-3" style="background:var(--surface-3);border:1px solid var(--border);">
+                    <div class="card-body">
+                        <p class="card-title fw-bold tw-mb-2">${label}</p>
+                        <p class="tw-mb-0"><strong style="font-size:1.1rem;">${actualWord||'?'}</strong></p>
+                    </div></div>`;
             }
-        }
-
-        function submitGuess(targetPid) {
-            playSound('click');
-            const input = document.getElementById('guess-input');
-            if (!input || input.disabled) return; // ป้องกันกดซ้ำ
-            const btn = document.getElementById('guess-btn');
-            const guess = input.value.trim();
-            if (!guess) { showToast('⚠️ ใส่คำทายด้วย!'); return; }
-
-            socket.emit('submit-guess', { targetPlayerId: targetPid, guess });
-            input.value = '';
-            input.disabled = true;
-            if (btn) btn.disabled = true;
-        }
-
-        function nextRound() {
-            playSound('click');
-            if (guessingModalInstance) guessingModalInstance.hide();
-            socket.emit('next-round');
-        }
-
-        function closeGuessingModal() {
-            playSound('click');
-            if (guessingModalInstance) guessingModalInstance.hide();
-        }
-
-        function leaveLobby() {
-            playSound('click');
-            socket.emit('leave-room');
-            stopTimer();
-            gameState = { myId: socket.id, myName: '', roomId: '', isHost: false, players: [], playerNames: {}, scores: {}, gameState: 'lobby', roundNum: 0, selectedCat: gameState.selectedCat || 'ปาร์ตี้', timerSecs: gameState.timerSecs || 300 };
-            showScreen('home');
-            showToast('👋 ออกจากห้องแล้ว');
-        }
-
-        function leaveGame() {
-            playSound('click');
-            socket.emit('leave-room');
-            stopTimer();
-            closeGuessingModal();
-            gameState = { myId: socket.id, myName: '', roomId: '', isHost: false, players: [], playerNames: {}, scores: {}, gameState: 'lobby', roundNum: 0, selectedCat: gameState.selectedCat || 'ปาร์ตี้', timerSecs: gameState.timerSecs || 300 };
-            showScreen('home');
-            showToast('👋 ออกจากเกมแล้ว');
-        }
-
-        function formatTimer(secs) {
-            const m = Math.floor(secs / 60);
-            const s = secs % 60;
-            return m + ':' + (s < 10 ? '0' : '') + s;
-        }
-        function startTimer(seconds, startTime) {
-            stopTimer();
-            const endAt = startTime ? startTime + seconds * 1000 : (Date.now() + seconds * 1000);
-            function tick() {
-                const now = Date.now();
-                timerRemaining = Math.max(0, Math.ceil((endAt - now) / 1000));
-                document.getElementById('timerText').textContent = formatTimer(timerRemaining);
-                const elapsed = seconds - timerRemaining;
-                const progress = (elapsed / seconds) * 100;
-                const disp = document.querySelector('.timer-display');
-                if (disp) disp.style.setProperty('--progress', progress + '%');
-                if (timerRemaining <= 0) {
-                    playSound('end');
-                    stopTimer();
-                    gameState.timeUp = true;
-                    updateEndRoundButton();
+            if (isMe) {
+                const myResult = gameState.guessResults[`${gameState.myId}_${gameState.myId}`];
+                if (myResult) {
+                    return `<div class="card tw-mb-3" style="background:rgba(232,98,42,0.08);border:1px solid rgba(232,98,42,0.2);border-radius:var(--radius-sm);">
+                        <div class="card-body">
+                            <p class="card-title fw-bold tw-mb-1">ทายคำบนหัวของตัวเอง</p>
+                            <p style="color:var(--text-2);" class="tw-mb-0">✔ ส่งคำทายแล้ว รอโฮสต์สิ้นสุดรอบ...</p>
+                        </div></div>`;
                 }
+                return `<div class="card tw-mb-3" style="background:rgba(232,98,42,0.08);border:1px solid rgba(232,98,42,0.25);border-radius:var(--radius-sm);">
+                    <div class="card-body">
+                        <p class="card-title fw-bold tw-mb-3">ทายคำบนหัวของตัวเอง</p>
+                        <div class="guess-input-row">
+                            <input type="text" id="guess-input" placeholder="ทายคำ..." class="form-control">
+                            <button type="button" id="guess-btn" class="btn btn-orange" onclick="submitGuess('${targetPid}')"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                    </div></div>`;
             }
-            tick();
-            timerInterval = setInterval(tick, 1000);
+            return `<div class="card tw-mb-3" style="background:var(--surface-3);border:1px solid var(--border);opacity:0.6;">
+                <div class="card-body">
+                    <small style="color:var(--text-3);">${gameState.guessSubmitted[targetPid]?'✔ ทายแล้ว':'รอให้ '+gameState.playerNames[targetPid]+' ทาย...'}</small>
+                </div></div>`;
+        }).join('');
+
+        const hostNextBtn = document.getElementById('hostNextBtn');
+        const closeGuessingBtn = document.getElementById('closeGuessingBtn');
+        const hostEndBtn = document.getElementById('hostEndRoundModalBtn');
+        if (isRevealPhase) {
+            if (hostNextBtn) hostNextBtn.style.display = gameState.isHost?'block':'none';
+            if (closeGuessingBtn) closeGuessingBtn.style.display = !gameState.isHost?'block':'none';
+            if (hostEndBtn) hostEndBtn.style.display = 'none';
+        } else {
+            if (hostNextBtn) hostNextBtn.style.display = 'none';
+            if (closeGuessingBtn) closeGuessingBtn.style.display = 'none';
+            if (hostEndBtn) hostEndBtn.style.display = gameState.isHost?'block':'none';
         }
-
-        function stopTimer() {
-            if (timerInterval) clearInterval(timerInterval);
+        if (!guessingModalInstance) {
+            guessingModalInstance = new bootstrap.Modal(document.getElementById('guessingModal'), {backdrop:'static',keyboard:false});
         }
+        const modalEl = document.getElementById('guessingModal');
+        if (modalEl && !modalEl.classList.contains('show')) guessingModalInstance.show();
+    }
 
-        // Socket Events
-        socket.on('your-player-id', (id) => {
-            gameState.myId = id;
+    function submitGuess(targetPid) {
+        playSound('click');
+        const input = document.getElementById('guess-input');
+        if (!input||input.disabled) return;
+        const btn = document.getElementById('guess-btn');
+        const guess = input.value.trim();
+        if (!guess) { showToast('⚠️ ใส่คำทายด้วย!'); return; }
+        socket.emit('submit-guess', { targetPlayerId: targetPid, guess });
+        input.value = ''; input.disabled = true; if (btn) btn.disabled = true;
+    }
+    function nextRound() { playSound('click'); if(guessingModalInstance)guessingModalInstance.hide(); socket.emit('next-round'); }
+    function closeGuessingModal() { playSound('click'); if(guessingModalInstance)guessingModalInstance.hide(); }
+    function leaveLobby() {
+        playSound('click'); socket.emit('leave-room'); stopTimer();
+        gameState={myId:socket.id,myName:'',roomId:'',isHost:false,players:[],playerNames:{},playerAvatars:{},playerRanks:{},userIds:{},scores:{},gameState:'lobby',roundNum:0,selectedCat:gameState.selectedCat||'ปาร์ตี้',timerSecs:gameState.timerSecs||300};
+        showScreen('home'); showToast('👋 ออกจากห้องแล้ว');
+    }
+    function leaveGame() {
+        playSound('click'); socket.emit('leave-room'); stopTimer(); closeGuessingModal();
+        gameState={myId:socket.id,myName:'',roomId:'',isHost:false,players:[],playerNames:{},playerAvatars:{},playerRanks:{},userIds:{},scores:{},gameState:'lobby',roundNum:0,selectedCat:gameState.selectedCat||'ปาร์ตี้',timerSecs:gameState.timerSecs||300};
+        showScreen('home'); showToast('👋 ออกจากเกมแล้ว');
+    }
+
+    /* ======================= TIMER ======================= */
+    function formatTimer(secs) {
+        const m=Math.floor(secs/60); const s=secs%60;
+        return m+':'+(s<10?'0':'')+s;
+    }
+    function startTimer(seconds, startTime) {
+        stopTimer();
+        const endAt = startTime ? startTime+seconds*1000 : (Date.now()+seconds*1000);
+        function tick() {
+            const now = Date.now();
+            timerRemaining = Math.max(0, Math.ceil((endAt-now)/1000));
+            document.getElementById('timerText').textContent = formatTimer(timerRemaining);
+            const elapsed = seconds - timerRemaining;
+            const progress = (elapsed/seconds)*100;
+            const disp = document.querySelector('.timer-display');
+            if (disp) disp.style.setProperty('--progress', progress+'%');
+            if (timerRemaining<=0) { playSound('end'); stopTimer(); gameState.timeUp=true; updateEndRoundButton(); }
+        }
+        tick(); timerInterval = setInterval(tick, 1000);
+    }
+    function stopTimer() { if(timerInterval) clearInterval(timerInterval); }
+
+    /* ======================= SOCKET EVENTS ======================= */
+    socket.on('your-player-id', (id) => {
+        gameState.myId = id;
+        if (gameState.isHost) updatePlayersList(); else updateGuestPlayersList();
+    });
+    socket.on('join-error', (data) => {
+        pendingJoinRoom=false; hideLoading();
+        showToast(data&&data.message?data.message:'⚠️ ไม่พบห้องนี้');
+    });
+    socket.on('room-updated', (data) => {
+        if (data.isHost!==undefined) gameState.isHost=data.isHost;
+        if (data.players&&Array.isArray(data.players)) {
+            gameState.players=data.players.map(p=>p.id);
+            data.players.forEach(p=>{
+                gameState.playerNames[p.id]=p.name;
+                gameState.playerAvatars[p.id]=p.avatarUrl||null;
+                gameState.playerRanks[p.id]=p.rank||null;
+                gameState.userIds[p.id]=p.userId||null;
+                gameState.scores[p.id]=gameState.scores[p.id]||{correct:0,wrong:0,total:0};
+            });
             if (gameState.isHost) updatePlayersList();
-            else updateGuestPlayersList();
-        });
-
-        socket.on('join-error', (data) => {
-            pendingJoinRoom = false;
-            hideLoading();
-            showToast(data && data.message ? data.message : '⚠️ ไม่พบห้องนี้');
-        });
-
-        socket.on('room-updated', (data) => {
-            if (data.isHost !== undefined) gameState.isHost = data.isHost;
-
-            if (data.players && Array.isArray(data.players)) {
-                gameState.players = data.players.map(p => p.id);
-                data.players.forEach(p => {
-                    gameState.playerNames[p.id] = p.name;
-                    gameState.scores[p.id] = gameState.scores[p.id] || { correct: 0, wrong: 0, total: 0 };
-                });
-                if (gameState.isHost) updatePlayersList();
-                else {
-                    updateGuestPlayersList();
-                    if (pendingJoinRoom) {
-                        pendingJoinRoom = false;
-                        showLobbyGuest();
-                        showToast('✅ เข้าห้องสำเร็จ!');
-                        setTimeout(hideLoading, 1800);
-                    }
-                }
+            else {
+                updateGuestPlayersList();
+                if (pendingJoinRoom) { pendingJoinRoom=false; showLobbyGuest(); showToast('✅ เข้าห้องสำเร็จ!'); setTimeout(hideLoading,1800); }
             }
+        }
+        if (data.selectedCat) gameState.selectedCat=data.selectedCat;
+        if (data.timerSecs) gameState.timerSecs=data.timerSecs;
+        if (data.roundNum!==undefined) gameState.roundNum=data.roundNum;
+        if (gameState.isHost) { syncCategorySelection(); syncTimerSelection(); }
+    });
+    socket.on('game-started', (data) => {
+        gameState.roundNum=data.roundNum; gameState.timerSecs=data.timerSecs; gameState.gameState='playing';
+        gameState.revealPhase=false; gameState.words={}; gameState.guessResults={};
+        gameState.guessSubmitted={}; gameState.allHaveGuessed=false; gameState.timeUp=false;
+        if (data.playerWords&&Array.isArray(data.playerWords)) {
+            data.playerWords.forEach(pw=>{ if(pw.playerId!==gameState.myId) gameState.words[pw.playerId]=pw.word; });
+        }
+        document.getElementById('roundText').textContent=`รอบที่ ${data.roundNum}`;
+        renderGameScreen(); updateEndRoundButton(); closeGuessingModal();
+        startTimer(data.timerSecs, data.startTime);
+    });
+    socket.on('round-ended', (data) => {
+        stopTimer(); playSound('end'); gameState.revealPhase=true;
+        gameState.guessResults=data.guessResults||{};
+        if (data.correctAnswers&&Array.isArray(data.correctAnswers)) {
+            data.correctAnswers.forEach(ca=>{ gameState.words[ca.playerId]=ca.word; });
+        }
+        if (data.scores) gameState.scores=data.scores;
+        renderGuessingScreen();
+    });
+    socket.on('guess-received', (data) => {
+        if (data.guessResult.correct&&data.guessResult.guesserId===gameState.myId) playSound('correct');
+        if (data.guessResult.guesserId===data.guessResult.targetPlayerId) gameState.guessSubmitted[data.guessResult.guesserId]=true;
+        if (data.guessResult.guesserId===gameState.myId||data.guessResult.targetPlayerId===gameState.myId) {
+            gameState.guessResults[data.resultKey]=data.guessResult;
+        }
+        renderGuessingScreen();
+        if (data.scores) gameState.scores=data.scores;
+        if (data.allHaveGuessed!==undefined) gameState.allHaveGuessed=data.allHaveGuessed;
+        updateScoresDisplay(); updateEndRoundButton();
+        if (data.allHaveGuessed&&!gameState.revealPhase) { gameState.revealPhase=false; renderGuessingScreen(); }
+    });
+    socket.on('player-left', (data) => {
+        if (data.players&&Array.isArray(data.players)) {
+            gameState.players=data.players.map(p=>p.id);
+            data.players.forEach(p=>{gameState.playerNames[p.id]=p.name;});
+        }
+        if (data.scores) gameState.scores=data.scores;
+        if (gameState.isHost) updatePlayersList(); else updateGuestPlayersList();
+        showToast(`👋 ${data.playerName} ออก`);
+    });
+    socket.on('host-changed', (data) => {
+        if (data.newHostId===gameState.myId) { gameState.isHost=true; showToast('👑 คุณเป็นเจ้าของห้องแล้ว!'); }
+    });
+    socket.on('host-left-room', (data) => {
+        stopTimer(); closeGuessingModal(); socket.emit('leave-room');
+        gameState.roomId=''; gameState.isHost=false; gameState.players=[];
+        gameState.playerNames={}; gameState.gameState='lobby'; gameState.myId=socket.id;
+        showScreen('home'); showToast(data.message||'เจ้าของห้องออกจากห้องแล้ว');
+    });
+    socket.on('words-reset', (data) => {
+        showResetPopup(data&&data.message?data.message:'คุณเล่นครบทุกคำแล้ว! ระบบจะรีเซ็ตคำใหม่ให้');
+    });
 
-            if (data.selectedCat) gameState.selectedCat = data.selectedCat;
-            if (data.timerSecs) gameState.timerSecs = data.timerSecs;
-            if (data.roundNum !== undefined) gameState.roundNum = data.roundNum;
-            if (gameState.isHost) {
-                syncCategorySelection();
-                syncTimerSelection();
-            }
-        });
+    function showResetPopup(message) {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px);';
+        const box = document.createElement('div');
+        box.style.cssText = 'background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-xl);padding:32px 24px;max-width:300px;width:90%;text-align:center;box-shadow:var(--shadow-lg);';
+        box.innerHTML = `<div style="font-size:44px;margin-bottom:12px;">🎉</div>
+            <h3 style="margin:0 0 10px;font-size:18px;font-weight:800;">เล่นครบทุกคำแล้ว!</h3>
+            <p style="margin:0 0 20px;color:var(--text-2);font-size:0.9rem;line-height:1.6;">${message}</p>
+            <button type="button" style="background:var(--primary);color:white;border:none;padding:12px 28px;border-radius:var(--radius-sm);font-size:0.95rem;font-weight:700;cursor:pointer;width:100%;font-family:'Sarabun',sans-serif;">รับทราบ</button>`;
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        box.querySelector('button').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
+    }
 
-        socket.on('game-started', (data) => {
-            gameState.roundNum = data.roundNum;
-            gameState.timerSecs = data.timerSecs;
-            gameState.gameState = 'playing';
-            gameState.revealPhase = false; // reset ทุกรอบ
-            gameState.words = {};
-            gameState.guessResults = {};
-            gameState.guessSubmitted = {};
-            gameState.allHaveGuessed = false;
-            gameState.timeUp = false;
-
-            if (data.playerWords && Array.isArray(data.playerWords)) {
-                data.playerWords.forEach(pw => {
-                    if (pw.playerId !== gameState.myId) {
-                        gameState.words[pw.playerId] = pw.word;
-                    }
-                });
-            }
-
-            document.getElementById('roundText').textContent = `รอบที่ ${data.roundNum}`;
-            renderGameScreen();
-            updateEndRoundButton();
-            closeGuessingModal();
-            startTimer(data.timerSecs, data.startTime);
-        });
-
-        socket.on('round-ended', (data) => {
-            stopTimer();
-            playSound('end');
-            gameState.revealPhase = true;
-            gameState.guessResults = data.guessResults || {};
-            if (data.correctAnswers && Array.isArray(data.correctAnswers)) {
-                data.correctAnswers.forEach(ca => {
-                    gameState.words[ca.playerId] = ca.word; // เก็บทุกคน รวมตัวเอง
-                });
-            }
-            if (data.scores) gameState.scores = data.scores;
-            renderGuessingScreen();
-        });
-
-        socket.on('guess-received', (data) => {
-            if (data.guessResult.correct && data.guessResult.guesserId === gameState.myId) playSound('correct');
-            if (data.guessResult.guesserId === data.guessResult.targetPlayerId)
-                gameState.guessSubmitted[data.guessResult.guesserId] = true;
-            if (data.guessResult.guesserId === gameState.myId || data.guessResult.targetPlayerId === gameState.myId) {
-                gameState.guessResults[data.resultKey] = data.guessResult;
-            }
-            renderGuessingScreen();
-            if (data.scores) gameState.scores = data.scores;
-            if (data.allHaveGuessed !== undefined) gameState.allHaveGuessed = data.allHaveGuessed;
-            updateScoresDisplay();
-            updateEndRoundButton();
-            // เปิด modal ให้ทายคำตัวเองทันทีที่ทุกคนทาย (ยังไม่ reveal)
-            if (data.allHaveGuessed && !gameState.revealPhase) {
-                gameState.revealPhase = false;
-                renderGuessingScreen();
-            }
-        });
-
-        socket.on('player-left', (data) => {
-            if (data.players && Array.isArray(data.players)) {
-                gameState.players = data.players.map(p => p.id);
-                data.players.forEach(p => { gameState.playerNames[p.id] = p.name; });
-            }
-            if (data.scores) gameState.scores = data.scores;
-
-            if (gameState.isHost) updatePlayersList();
-            else updateGuestPlayersList();
-
-            showToast(`👋 ${data.playerName} ออก`);
-        });
-
-        socket.on('host-changed', (data) => {
-            if (data.newHostId === gameState.myId) {
-                gameState.isHost = true;
-                showToast('👑 คุณเป็นเจ้าของห้องแล้ว!');
-            }
-        });
-
-        socket.on('host-left-room', (data) => {
-            stopTimer();
-            closeGuessingModal();
-            socket.emit('leave-room');
-            gameState.roomId = '';
-            gameState.isHost = false;
-            gameState.players = [];
-            gameState.playerNames = {};
-            gameState.gameState = 'lobby';
-            gameState.myId = socket.id;
-            showScreen('home');
-            showToast(data.message || 'เจ้าของห้องออกจากห้องแล้ว');
-        });
-
-        // ผู้เล่นคนนี้ใช้ครบทุกคำในหมวด แล้วระบบรีเซ็ตคำใหม่ให้
-        socket.on('words-reset', (data) => {
-            showResetPopup(data && data.message
-                ? data.message
-                : 'คุณเล่นครบทุกคำแล้ว! ระบบจะทำการรีเซ็ตคำใหม่ทั้งหมดให้คุณ');
-        });
-
-        function showResetPopup(message) {
-            const overlay = document.createElement('div');
-            overlay.classList.add('reset-overlay');
-            overlay.style.cssText = [
-                'position: fixed',
-                'inset: 0',
-                'background: rgba(0,0,0,0.6)',
-                'display: flex',
-                'align-items: center',
-                'justify-content: center',
-                'z-index: 9999'
-            ].join('; ');
-
-            const box = document.createElement('div');
-            box.style.cssText = [
-                'background: white',
-                'border-radius: 16px',
-                'padding: 32px 24px',
-                'max-width: 320px',
-                'width: 90%',
-                'text-align: center',
-                'box-shadow: 0 8px 32px rgba(0,0,0,0.3)'
-            ].join('; ');
-
-            box.innerHTML = `
-                <div style="font-size: 48px; margin-bottom: 12px;">🎉</div>
-                <h3 style="margin: 0 0 12px; font-size: 20px; color: #1a1a1a;">เล่นครบทุกคำแล้ว!</h3>
-                <p style="margin: 0 0 24px; color: #555; line-height: 1.5;">${message}</p>
-                <button type="button" style="
-                    background: #6c47ff;
-                    color: white;
-                    border: none;
-                    padding: 12px 32px;
-                    border-radius: 8px;
-                    font-size: 16px;
-                    cursor: pointer;
-                    width: 100%;
-                ">รับทราบ</button>
-            `;
-
-            overlay.appendChild(box);
-            document.body.appendChild(overlay);
-
-            // ปุ่มรับทราบ
-            const btn = box.querySelector('button');
-            if (btn) {
-                btn.addEventListener('click', () => overlay.remove());
-            }
-
-            // กดด้านนอกกล่องเพื่อปิดได้
-            overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) overlay.remove();
+    /* ======================= INIT ======================= */
+    function initAvatarFileListeners() {
+        const authFileInput = document.getElementById('authAvatarFile');
+        if (authFileInput) {
+            authFileInput.addEventListener('change', async () => {
+                const file = authFileInput.files && authFileInput.files[0];
+                if (!file) return;
+                if (file.size > 2*1024*1024) { showToast('⚠️ รูปใหญ่เกินไป'); authFileInput.value=''; return; }
+                try {
+                    const url = await readFileAsDataURL(file);
+                    authAvatarState.type = 'upload'; authAvatarState.value = url;
+                    refreshAvatarPreview('authAvatarPicker', authAvatarState);
+                } catch(e) { showToast('ไม่สามารถแสดงตัวอย่างรูปได้'); }
             });
         }
+        const profileFileInput = document.getElementById('profileAvatarFile');
+        if (profileFileInput) {
+            profileFileInput.addEventListener('change', async () => {
+                const file = profileFileInput.files && profileFileInput.files[0];
+                if (!file) return;
+                if (file.size > 2*1024*1024) { showToast('⚠️ รูปใหญ่เกินไป'); profileFileInput.value=''; return; }
+                try {
+                    const url = await readFileAsDataURL(file);
+                    profileAvatarState.type = 'upload'; profileAvatarState.value = url;
+                    refreshAvatarPreview('profileAvatarPicker', profileAvatarState);
+                } catch(e) { showToast('ไม่สามารถแสดงตัวอย่างรูปได้'); }
+            });
+        }
+    }
 
-        // โหลดธีม + auto-fill room จาก URL (รอ DOM พร้อม) + ซ่อนหน้า loading หลังโหลดเสร็จ
-        document.addEventListener('DOMContentLoaded', function() {
-            initTheme();
-            const urlParams = new URLSearchParams(window.location.search);
-            const roomCode = urlParams.get('room');
-            if (roomCode) {
-                const el = document.getElementById('roomCode');
-                if (el) { el.value = roomCode; goToJoinRoom(); }
+    socket.on('rank-updated', (data) => {
+        // อัปเดต rank ในห้องสำหรับผู้เล่นที่ตรงกับ userId
+        if (!gameState.playerRanks) gameState.playerRanks = {};
+        if (!gameState.userIds) gameState.userIds = {};
+        gameState.players.forEach(pid => {
+            if (gameState.userIds[pid] === data.userId) {
+                gameState.playerRanks[pid] = data.rank;
             }
-            // ซ่อนหน้า loading หลังจาก DOM พร้อมแล้วเล็กน้อย (เวลาสั้น ๆ เวลารีเฟรช)
-            setTimeout(hideLoading, 1800);
         });
+        // ถ้าเป็นตัวเอง อัปเดต currentUser ด้วย
+        if (currentUser && currentUser.id === data.userId) {
+            currentUser.rank = data.rank;
+            saveCurrentUser(currentUser);
+        }
+        updatePlayersList();
+        updateGuestPlayersList();
+        if (document.getElementById('screen-game').classList.contains('active')) renderGameScreen();
+        // อัปเดต admin panel ถ้าเปิดอยู่
+        if (adminTarget && adminTarget.id === data.userId) {
+            adminTarget.rank = data.rank;
+            renderAdminCurrentRank();
+        }
+        renderAdminRoomPlayersList();
+    });
+
+    /* ======================= ADMIN PANEL ======================= */
+    let adminPanelModalInstance = null;
+    let adminTarget = null; // { id, displayName, email, avatarUrl, rank }
+    let selectedRankColor = '#f59e0b';
+
+    const RANK_COLOR_PRESETS = [
+        { color: '#f59e0b', label: 'ทอง' },
+        { color: '#ef4444', label: 'แดง' },
+        { color: '#e8622a', label: 'ส้ม' },
+        { color: '#22c55e', label: 'เขียว' },
+        { color: '#3b82f6', label: 'ฟ้า' },
+        { color: '#a855f7', label: 'ม่วง' },
+        { color: '#ec4899', label: 'ชมพู' },
+        { color: '#06b6d4', label: 'ฟิ้า' },
+        { color: '#ffffff', label: 'ขาว' },
+        { color: '#94a3b8', label: 'เงิน' },
+    ];
+
+    function openAdminPanel() {
+        playSound('click');
+        if (!currentUser || !currentUser.isAdmin) return;
+        if (!adminPanelModalInstance) adminPanelModalInstance = new bootstrap.Modal(document.getElementById('adminPanelModal'));
+        adminClearTarget();
+        buildRankColorPresets();
+        renderAdminRoomPlayersList();
+        document.getElementById('adminSearchEmail').value = '';
+        document.getElementById('adminSearchResult').innerHTML = '';
+        adminPanelModalInstance.show();
+    }
+
+    function buildRankColorPresets() {
+        const container = document.getElementById('rankColorPresets');
+        if (!container || container.children.length > 0) return; // build once
+        RANK_COLOR_PRESETS.forEach(({ color, label }) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.title = label;
+            btn.style.cssText = `width:28px;height:28px;border-radius:50%;background:${color};border:2px solid transparent;cursor:pointer;transition:all 0.15s;flex-shrink:0;`;
+            btn.addEventListener('click', () => {
+                selectedRankColor = color;
+                document.getElementById('adminRankColor').value = color;
+                updateRankPreview();
+                // highlight selected
+                document.querySelectorAll('#rankColorPresets button').forEach(b => b.style.borderColor = 'transparent');
+                btn.style.borderColor = 'rgba(255,255,255,0.7)';
+            });
+            container.appendChild(btn);
+        });
+    }
+
+    function onCustomColorInput(value) {
+        selectedRankColor = value;
+        document.querySelectorAll('#rankColorPresets button').forEach(b => b.style.borderColor = 'transparent');
+        updateRankPreview();
+    }
+
+    function updateRankPreview() {
+        const name = (document.getElementById('adminRankName')?.value || '').trim();
+        const color = selectedRankColor || '#f59e0b';
+        const namePreview = document.getElementById('adminRankNamePreview');
+        const badgePreview = document.getElementById('adminRankBadgePreview');
+        if (namePreview) namePreview.textContent = adminTarget ? adminTarget.displayName : '';
+        if (badgePreview) {
+            if (name) {
+                badgePreview.textContent = name;
+                badgePreview.style.cssText = `background:${hexToRgba(color,0.15)};color:${color};border-color:${hexToRgba(color,0.35)};`;
+                badgePreview.className = 'rank-badge';
+            } else {
+                badgePreview.textContent = 'ไม่มียศ';
+                badgePreview.className = 'rank-badge';
+                badgePreview.style.cssText = 'background:var(--surface-3);color:var(--text-3);border-color:var(--border);';
+            }
+        }
+    }
+
+    function renderAdminCurrentRank() {
+        const el = document.getElementById('adminCurrentRankDisplay');
+        if (!el || !adminTarget) return;
+        const r = adminTarget.rank;
+        if (r && r.name) {
+            el.innerHTML = `ยศปัจจุบัน: ${rankBadgeHtml(r)}`;
+        } else {
+            el.innerHTML = `<span style="color:var(--text-3);font-size:0.78rem;">ยังไม่มียศ</span>`;
+        }
+    }
+
+    function renderAdminRoomPlayersList() {
+        const container = document.getElementById('adminRoomPlayersList');
+        if (!container) return;
+        if (!gameState.players.length) {
+            container.innerHTML = '<div style="color:var(--text-3);font-size:0.82rem;">ไม่มีผู้เล่นในห้อง (เข้าห้องก่อน)</div>';
+            return;
+        }
+        container.innerHTML = '';
+        gameState.players.forEach(pid => {
+            const uid = gameState.userIds?.[pid];
+            const name = gameState.playerNames[pid];
+            const av = gameState.playerAvatars[pid];
+            const rank = gameState.playerRanks[pid];
+            if (!uid) return; // skip ถ้าไม่มี userId (ไม่มีบัญชี)
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface-3);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:all 0.15s;';
+            row.innerHTML = `
+                ${renderAvatarHtml(av, 32)}
+                <div class="flex-grow-1 d-flex align-items-center flex-wrap gap-2">
+                    <span style="font-weight:600;font-size:0.88rem;">${name}</span>
+                    ${rankBadgeHtml(rank)}
+                </div>
+                <i class="fas fa-edit" style="color:var(--text-3);font-size:0.8rem;"></i>`;
+            row.addEventListener('mouseenter', () => row.style.borderColor = 'var(--primary)');
+            row.addEventListener('mouseleave', () => row.style.borderColor = 'var(--border)');
+            row.addEventListener('click', () => setAdminTarget({ id: uid, displayName: name, avatarUrl: av, rank: rank||null }));
+            container.appendChild(row);
+        });
+        if (!container.children.length) {
+            container.innerHTML = '<div style="color:var(--text-3);font-size:0.82rem;">ผู้เล่นในห้องยังไม่ได้ล็อกอิน</div>';
+        }
+    }
+
+    function setAdminTarget(user) {
+        adminTarget = user;
+        // Fill editor
+        document.getElementById('adminTargetName').textContent = user.displayName;
+        document.getElementById('adminTargetEmail').textContent = user.email || '';
+        document.getElementById('adminTargetAvatar').innerHTML = renderAvatarHtml(user.avatarUrl, 40);
+        renderAdminCurrentRank();
+        // Pre-fill rank fields
+        const r = user.rank;
+        document.getElementById('adminRankName').value = (r && r.name) ? r.name : '';
+        selectedRankColor = (r && r.color) ? r.color : '#f59e0b';
+        document.getElementById('adminRankColor').value = selectedRankColor;
+        updateRankPreview();
+        document.getElementById('adminRankEditor').style.display = 'block';
+        // Scroll to editor
+        document.getElementById('adminRankEditor').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function adminClearTarget() {
+        adminTarget = null;
+        document.getElementById('adminRankEditor').style.display = 'none';
+        document.getElementById('adminRankName').value = '';
+        selectedRankColor = '#f59e0b';
+    }
+
+    function adminSearchUser() {
+        const email = document.getElementById('adminSearchEmail').value.trim();
+        if (!email) { showToast('⚠️ ใส่อีเมลก่อน'); return; }
+        const resultEl = document.getElementById('adminSearchResult');
+        resultEl.innerHTML = '<span style="color:var(--text-3);">กำลังค้นหา...</span>';
+        socket.emit('admin-search-user', { email });
+    }
+
+    socket.on('admin-search-result', (data) => {
+        const el = document.getElementById('adminSearchResult');
+        if (!el) return;
+        if (data.error) {
+            el.innerHTML = `<span style="color:var(--danger);">${data.error}</span>`;
+            return;
+        }
+        const u = data.user;
+        el.innerHTML = '';
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface-3);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;margin-top:4px;transition:all 0.15s;';
+        row.innerHTML = `
+            ${renderAvatarHtml(u.avatarUrl, 32)}
+            <div class="flex-grow-1">
+                <div style="font-weight:700;font-size:0.88rem;">${u.displayName}</div>
+                <div style="font-size:0.75rem;color:var(--text-3);">${u.email}</div>
+            </div>
+            ${rankBadgeHtml(u.rank)}
+            <i class="fas fa-edit" style="color:var(--text-3);font-size:0.8rem;"></i>`;
+        row.addEventListener('mouseenter', () => row.style.borderColor = 'var(--primary)');
+        row.addEventListener('mouseleave', () => row.style.borderColor = 'var(--border)');
+        row.addEventListener('click', () => setAdminTarget({ id: u.id, displayName: u.displayName, email: u.email, avatarUrl: u.avatarUrl, rank: u.rank||null }));
+        el.appendChild(row);
+    });
+
+    function adminApplyRank() {
+        if (!adminTarget) return;
+        const rankName = document.getElementById('adminRankName').value.trim();
+        const rankColor = selectedRankColor || '#f59e0b';
+        socket.emit('admin-set-rank', { targetUserId: adminTarget.id, rankName, rankColor });
+    }
+
+    socket.on('admin-rank-success', (data) => {
+        const badge = data.rank ? rankBadgeHtml(data.rank) : '<span style="color:var(--text-3);">ลบยศแล้ว</span>';
+        showToast(`✅ ${data.displayName}: ${badge.replace(/<[^>]+>/g,'') || 'ลบยศแล้ว'}`);
+        // อัปเดต adminTarget
+        if (adminTarget && adminTarget.id === data.userId) {
+            adminTarget.rank = data.rank;
+            renderAdminCurrentRank();
+        }
+        renderAdminRoomPlayersList();
+    });
+    socket.on('admin-rank-error', (data) => { showToast('❌ ' + (data.message || 'เกิดข้อผิดพลาด')); });
+        loadCurrentUser(); initTheme(); setAuthMode('login');
+        initAuthAvatarPicker();
+        initProfileEmojiGrid();
+        initAvatarFileListeners();
+
+        if (currentUser) {
+            const hi = document.getElementById('hostName'); const gi = document.getElementById('guestName');
+            if (hi) hi.value = currentUser.displayName || ''; if (gi) gi.value = currentUser.displayName || '';
+            showScreen('home');
+        } else {
+            showScreen('auth');
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomCode = urlParams.get('room');
+        if (roomCode) {
+            const el = document.getElementById('roomCode'); if (el) el.value = roomCode;
+            if (currentUser) goToJoinRoom();
+        }
+        setTimeout(hideLoading, 1800);
     </script>
 </body>
 </html>
