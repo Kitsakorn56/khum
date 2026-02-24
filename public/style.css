@@ -1,7 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Noto+Serif+Thai:wght@400;600;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Noto+Serif+Thai:wght@400;600;700;900&display=swap');
 
 /* ===== RESET & BASE ===== */
-* { font-family: 'Sarabun', sans-serif; box-sizing: border-box; }
+* { font-family: 'Kanit', sans-serif; box-sizing: border-box; }
 
 :root {
     --primary: #e8622a;
@@ -776,4 +776,5 @@ html[data-bs-theme="light"] .modal-content {
 badge style
 
 /* ===== BADGE / STATUS ===== */
+
 .badge.bg-success { background: rgba(34, 197, 94, 0.15) !important; color: #4ade80 !important; border: 1px solid rgba(34, 197, 94, 0.25); }
