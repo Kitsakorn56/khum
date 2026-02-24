@@ -1,171 +1,221 @@
 const express = require('express');
+require('dotenv').config();
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http, {
   cors: { origin: "*", methods: ["GET", "POST"] }
 });
 const path = require('path');
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const CATEGORIES = require('./categories');
 
-// คลังคำศัพท์ภาษาไทย - หมวดหมู่ ปาร์ตี้ / ออฟฟิศ
-const CATEGORIES = {
-  'ปาร์ตี้': [
-   // คำอุทาน/ติดปาก
-  'เฮ', 'โห', 'อุ้ย', 'โอ', 'อา', 'เอ', 'อิ', 'อี', 'อุ', 'โอ้โห',
-  'ว้าว', 'โอ้ว', 'อ๊ะ', 'เอ๊ะ', 'อ๊อ', 'อุ๊บ', 'โธ่', 'โธ', 'แหน่', 'เห้อ',
-  'ฮือ', 'ฮัก', 'ฉึก', 'ป๋อ', 'ปั๊ก', 'ป๊อก', 'ปุ๊ก', 'โป้ก', 'แปะ', 'ป๊าด',
-  'ชะ', 'ชิ', 'ถุย', 'ทุย', 'ปุ้ย', 'โว้ย', 'หวา', 'แหม่',
+// Database setup
+const MONGO_URL = process.env.MONGO_URL || process.env.MONGODB_URI;
+if (!MONGO_URL) {
+  console.warn('⚠️  MONGO_URL / MONGODB_URI is not set.');
+} else {
+  mongoose
+    .connect(MONGO_URL)
+    .then(() => console.log('✅ Connected to MongoDB'))
+    .catch((err) => console.error('Failed to connect MongoDB:', err));
+}
 
-  // กริยาปาร์ตี้
-  'แกล้ง', 'แหย', 'ยั่ว', 'ล้อ', 'หยอก', 'เย้า', 'จูบ', 'กอด', 'โอบ', 'พยัก',
-  'ผงก', 'ขยิบ', 'ขยับ', 'ยิ้ม', 'ยักไหล่', 'ชี้', 'โบก', 'ตบ', 'ตบไหล่', 'ตบหลัง',
-  'ตบมือ', 'ปรบ', 'กระซิบ', 'ตะโกน', 'กรี๊ด', 'หอน', 'ฮัม', 'ผิวปาก', 'เป่า', 'เคาะ',
-  'กระทืบ', 'กระโดดโลด', 'ควง', 'หมุน', 'ติ่ง', 'เตะ', 'ถีบ', 'ชก', 'ต่อย', 'ปัด',
-  'โยน', 'จับ', 'ปล่อย', 'กระชาก', 'ฉวย', 'คว้า', 'หยิบ', 'วาง', 'ทิ้ง', 'เหวี่ยง',
-  'สะบัด', 'ไล่', 'วิ่งหนี', 'วิ่งตาม', 'ไล่จับ', 'ซ่อนหา', 'แข่ง', 'พนัน', 'เดิมพัน',
-  'เปิดเพลง', 'เปลี่ยนเพลง', 'ขอเพลง', 'ร้องคู่', 'เต้นคู่', 'จับคู่', 'เปลี่ยนคู่', 'จีบ', 'แอ้ม', 'ขอเบอร์',
+// ── Schema ──────────────────────────────────────────────────────────────────
+const userSchema = new mongoose.Schema(
+  {
+    email:        { type: String, required: true, unique: true },
+    passwordHash: { type: String, required: true },
+    displayName:  { type: String, required: true },
+    avatarUrl:    { type: String, default: null },
+    isAdmin:      { type: Boolean, default: false },
+    rank: {
+      name:  { type: String, default: null },   // ชื่อยศ เช่น "ราชา"
+      color: { type: String, default: '#f97316' } // hex color
+    }
+  },
+  { timestamps: true }
+);
 
-  // อารมณ์/ความรู้สึก
-  'ฟิน', 'เว่อร์', 'ทึ่ง', 'ตื่น', 'ตกใจ', 'หวิว', 'เสียว', 'ซึ้ง', 'ปลื้ม', 'ภูมิ',
-  'หยิ่ง', 'โก้', 'เท่', 'หน่าย', 'เอียน', 'ขำ', 'ฮา', 'ตลก',  'ขัน',
-  'ขื่น', 'หืน', 'หึง', 'โมโห', 'แค้น', 'เจ็บใจ', 'น้อยใจ', 'งอน', 'คะนอง', 'ป่า',
-  'เถื่อน', 'บ้าบิ่น', 'บ้าระห่ำ', 'ใจร้อน', 'ใจเย็น', 'ใจดี', 'ใจดำ', 'ใจอ่อน', 'ใจแข็ง', 'ใจหาย',
-  'ใจชื้น', 'ใจฝ่อ', 'ใจเต้น', 'หัวร้อน', 'หัวแข็ง', 
+const User = mongoose.model('User', userSchema);
 
-  // สภาพร่างกาย/การเคลื่อนไหว
-  'คลาน', 'เอน', 'พิง', 'งอ', 'เกร็ง', 'ผ่อน', 'ตึง', 'หย่อน', 'สลบ', 'ฟื้น',
-  'สะอึก', 'จาม', 'ไอ', 'เรอ', 'อ้า', 'หุบ', 'บิด', 'ยืด', 'หด', 'ส่าย',
-  'แอ่ว', 'โยก', 'เอียง', 'เซ', 'โซ', 'เกลือก', 'กลิ้ง', 'พลิก',
-  'คว่ำ', 'หงาย', 'นอนหงาย', 'นอนคว่ำ', 'นั่งพับเพียบ', 'นั่งสมาธิ', 'นั่งงอ',
+function publicUserRow(user) {
+  if (!user) return null;
+  return {
+    id:          user._id.toString(),
+    email:       user.email,
+    displayName: user.displayName,
+    avatarUrl:   user.avatarUrl || null,
+    isAdmin:     !!user.isAdmin,
+    rank:        (user.rank && user.rank.name) ? { name: user.rank.name, color: user.rank.color || '#f97316' } : null
+  };
+}
 
-  // สี/ลักษณะภาพ
-  'แดง', 'ส้ม', 'เหลือง', 'เขียว', 'ฟ้า', 'ม่วง', 'ชมพู', 'ขาว', 'ดำ', 'เทา',
-  'น้ำตาล', 'ทอง', 'เงิน', 'ใส', 'ขุ่น', 'มัว', 'จาง', 'เข้ม', 'สด', 'หม่น',
-  'โทน', 'นีออน', 'พาสเทล', 'กลิตเตอร์', 'เรือง', 'วาว', 'ด้าน', 'มัน', 'ลาย',
-
-  // คำบอกสถานะ/ตำแหน่ง
-  'ข้างใน', 'ข้างนอก', 'ข้างบน', 'ข้างล่าง', 'ข้างหน้า', 'ข้างหลัง', 'ข้างซ้าย', 'ข้างขวา', 'ตรงนี้', 'ตรงนั้น',
-  'ใกล้', 'ไกล', 'ชิด', 'ห่าง', 'กลาง', 'ริม', 'ขอบ', 'มุม', 'ปลาย', 'ต้น',
-  'แถว', 'โต๊ะ', 'เก้าอี้', 'พื้น', 'บนโต๊ะ', 'ใต้โต๊ะ', 'ม่าน', 'ริมประตู', 'หัวมุม',
-
-  // คำสแลงความสัมพันธ์
-  'โสด', 'คู่', 'แฟน', 'กิ๊ก', 'เพื่อนแท้', 'เพื่อนเมา', 'เพื่อนตาย', 'คนรัก', 'คนชอบ',
-  'แอบชอบ', 'ชอบ', 'รัก', 'เกลียด', 'เฉยๆ', 'แอบรัก', 'ตกหลุม', 'หลงรัก', 'รักแรกพบ',
-  'อกหัก', 'เลิก', 'เลิกกัน', 'เลิกแล้ว', 'ช่วง', 'ห่าง', 'คืนดี', 'ง้อ', 'ง้อกัน', 'ขอโทษ',
-  'ยกโทษ', 'ให้อภัย', 'โกรธ', 'หายโกรธ', 'เย็นลง', 'ร้อนขึ้น', 'เดือด', 'ระเบิด', 'ระเบิดอารมณ์', 'ระบาย',
-
-  // คำเกี่ยวกับโซเชียล/การสื่อสาร
-  'ไลก์', 'แชร์', 'คอมเมนต์', 'แท็ก', 'เช็คอิน', 'ลงสตอรี่', 'ไลฟ์', 'บล็อก', 'แอด', 'ฟอล',
-  'อันฟอล', 'มิวท์', 'ดีลีท', 'อาร์ไคฟ์', 'ซ่อน', 'รีโพสต์', 'ดูอย่างเงียบๆ', 'สตอล์ก', 'แอบดู', 'โพสต์',
-  'ส่งรูป', 'ส่งคลิป', 'ส่งสติ๊กเกอร์', 'ส่งหัวใจ', 'ส่งไฟร์', 'ส่งซัด', 'รีแอค', 'ส่งต่อ', 'บันทึก', 'สกรีนช็อต',
-    'ฉ่ำ', 'จึ้ง', 'โฮ่ง', 'ตัวแม่',  'แกง', 'ขิต', 'จอย', 'นัว',
-  'อ่อม', 'ตะโกน', 'แรงมาก', 'คุณน้า', 'นอยด์',  'สู้ชีวิต', 'เกินต้าน', 'ปัง',
-  // ฟีลลิ่ง & บรรยากาศ
-    'ตึง', 'ปล่อยจอย', 'เต็มคาราเบล', 'ทรงอย่างแบด', 'ว้าวุ่น', 'ภาพตัด', 'วาร์ป',
-  'รั่ว',  'เบลอ', 'นัวเนีย', 'บิ้ว', 'มันส์', 'หลุดโลก', 'แสงสี', 'เลเซอร์', 'ควัน',
-  // ความสัมพันธ์/โซเชียล (Update 2026)
-  'เปิดตัว', 'ฟีลแฟน', 'คนคุย','แมตช์', 'ปัดขวา', 'โดนเท', 'มูฟออน',
-  'วงใน', 'ขยี้', 'ขยับสถานะ', 'ตั้งไฮไลต์', 'แท็กแฟน', 'ซ่อนเร้น', 'ส่อง','โบ๊ะบ๊ะ',
-  // การดื่ม/กิจกรรม
-  'ชนแก้ว', 'หมดแก้ว', 'เพียว',  'ถอน',  'โยกหัว',
-  'อัปคลิป', 'ขอวาร์ป', 'แชร์โล', 'เลิกดึก', 'ยันเช้า', 'สู้ตาย', 'ไปต่อ', 'ร้านเดิม',
-  // คำขยาย/ระดับ
-  'จริงๆ', 'เลย', 'มั้ง', 'คง', 'น่า', 'อาจ', 'ต้อง', 'ควร', 'อยาก',
-  'เคย', 'เพิ่ง', 'กำลัง', 'จะ', 'แล้ว', 'ยัง', 'ไม่', 'ไม่ได้', 'ไม่เคย', 'ไม่ต้อง',
-  'ได้', 'ดี', 'ดีมาก',  'แย่',  'โห่', 'เฮ่',
-
-  // คำบรรยายเสียง/ดนตรี
-  'ดัง', 'เบา', 'ก้อง', 'แผ่ว', 'แหลม', 'ทุ้ม', 'กังวาน', 'แหบ', 'แห้ง', 'ชัด',
-  'เพราะ', 'ห่วย', 'หู', 'หูแว่ว', 'หูอื้อ', 'หูตึง', 'จังหวะ',  'บีท',
-  'เบส',  'โน้ต', 'คอร์ด', 'ริฟ', 'โซโล', 'คอรัส', 'เวิร์ส', 'บริดจ์',
-
-  // คำเบ็ดเตล็ดที่ใช้บ่อยในปาร์ตี้
-  'ก่อน', 'หลัง', 'แรก', 'สุดท้าย', 'ต่อไป', 'ถัดไป', 'ก่อนหน้า', 'ตอนนั้น', 'ตอนนี้', 'ต่อจากนี้',
-  'เมื่อกี้', 'เมื่อคืน', 'เมื่อวาน', 'พรุ่งนี้', 'คืนนี้', 'เช้านี้', 'ค่ำนี้', 'ดึกนี้',  'เดี๋ยวนี้',
-  ],
-  'ออฟฟิศ': [
-    'อ้าว', 'อ้อ', 'อ๋อ', 'โอ้', 'เออ', 'อือ', 'อ่า', 'อ่ะ', 'เอ่อ', 'อุ้ย',
-  'ชัวร์', 'โอเค', 'โอเคนะ', 'ใช่', 'ใช่เลย', 'ถูกต้อง', 'ถูกแล้ว', 'ดีเลย', 'ได้เลย', 'ตกลง',
-  'งั้นนะ', 'งั้นเหรอ', 'จริงๆ', 'เเบบนั้น', 'เข้าใจ', 'รับทราบ', 'โนพรอบเลม',
-
-  // กริยาในออฟฟิศ
-  'รีบ', 'รอ', 'เช็ก', 'ดู', 'แก้', 'คิด', 'จด', 'จับ', 'เก็บ', 'ทิ้ง',
-  'ขีด', 'ขีดฆ่า', 'ขีดเส้น', 'เน้น', 'ติ๊ก', 'ครอส', 'วงกลม', 'ใส่ดาว', 'ลูกศร', 'ไฮไลต์',
-  'เลื่อน', 'ย้าย', 'โยก', 'พลิก', 'กลับ', 'สลับ', 'สับ', 'สุ่ม', 'ฟิลเตอร์', 'ค้นหา',
-  'แก้เป็น', 'เปลี่ยน', 'แทน', 'เอาออก', 'ตัด', 'ปรับ', 'โอน', 'ย้ายไฟล์', 'ก็อปไฟล์', 'วางไฟล์',
-  'ซิป', 'แตกไฟล์', 'อัปโหลด', 'ดาวน์โหลด', 'แชร์ลิงก์', 'ส่งลิงก์', 'คัดลอก',  'เปิดลิงก์', 
-  'รีเฟรช', 'โหลดใหม่', 'เปิดใหม่', 'ปิดเปิด', 'รีสตาร์ต', 'อัปเดต', 'อัปเกรด',  
-
-  // คนในออฟฟิศ (คำสั้น)
-  'พี่', 'น้อง', 'เพื่อน', 'หัวหน้า', 'ลูกน้อง', 'บอส', 'แม่บ้าน', 'รปภ', 'แอดมิน', 
-  'บัญชี',  'ขาย', 'ตลาด', 'ซัพพอร์ต', 'ลูกค้า',  'รุ่นพี่', 'รุ่นน้อง', 'คนใหม่',
-  'คนเก่า', 'คนดัง', 'คนเงียบ', 'คนงาน', 'ว่าง', 'ยุ่ง', 'คนดี', 'คนเก่ง', 'คนขยัน', 'คนขี้เกียจ', 
-
-
-  // สถานที่/พื้นที่ทำงาน
-  'โถง', 'ทางเดิน', 'บันได', 'ลิฟต์', 'ที่จอด', 'ห้อง', 'โซน', 'บูธ', 
-  'กระดาน', 'ไวท์บอร์ด', 'กระจก', 'ป้าย', 'ชั้นวาง', 'ถาด', 'กล่องจดหมาย', 'ตู้', 'ล็อกเกอร์',
-  'ครัว', 'ที่ล้างจาน', 'ตู้เย็น', 'ไมโครเวฟ', 'ชง', 'น้ำร้อน', 'กด', 'ตู้ขาย',
-  'โรงอาหาร', 'เซเว่น',  'กาแฟ', 'ก๋วยเตี๋ยว',
-
-  // อุปกรณ์/ของใช้
-  'กระเป๋า', 'เป้', 'กระเป๋าตัง', 'บัตร', 'แท็ก', 'คล้อง', 'คลิป', 'หนีบ', 'ยาง',
-  'ดินสอ', 'ยางลบ', 'ไม้บรรทัด', 'เทป', 'กาว', 'กรรไกร', 'คัตเตอร์', 'ลวดเย็บ',  'แม็กซ์',
-  'โพสอิท', 'สมุด', 'โน้ตบุ๊ก', 'แฟ้ม',  'เอกสาร', 'A4',
-  'หน้าจอ', 'คีย์บอร์ด', 'เมาส์', 'ชาร์จ', 'พาวเวอร์แบงก์', 'เว็บแคม',
-
-  // อาการ/ความรู้สึกในที่ทำงาน
-  'ง่วง', 'หาว', 'หิว', 'อิ่ม', 'กระหาย', 'เมื่อย', 'ล้า', 'ปวด', 'ชา', 'คัน',
-  'สั่น', 'เหงื่อ', 'เวียน', 'หน้ามืด', 'ใจหาย', 'เครียด', 'กลัว', 'เบื่อ', 'เซ็ง', 'ท้อ',
-  'หมดไฟ', 'พัง', 'แบน', 'แห้ง', 'ตึง', 'ล้น', 'แน่น', 'หนัก', 'เบา', 'กดดัน',
-  'ลน', 'ลนลาน', 'ตื่นตระหนก', 'ตื่นเต้น', 'ฮึด', 'ฮึก', 'สู้',
-
-  // คำบรรยายงาน/คุณภาพ
-  'ยาก', 'ง่าย',  'เรียบ', 'ชัด', 'มัว', 'คลุม', 'กำกวม', 'แน่', 'ชัด',
-  'สำคัญ', 'รอง', 'หลัก', 'เสริม', 'จำเป็น', 'เร่งด่วน', 'รอได้', 'ดี', 'แย่', 'โอเค',
-  'น่าพอใจ', 'น่าผิดหวัง', 'ทึ่ง', 'แปลก', 'ปกติ', 'ผิดปกติ', 'เกินคาด', 'ต่ำ', 'ตามคาด',
-  'ผ่าน', 'ตก', 'รอด', 'พลาด', 'คลาด', 'เกือบ', 'เกือบได้', 'เกือบผ่าน', 'เกือบทัน',
-
-  // เวลา/กำหนดการ
-  'ตรงเวลา', 'สาย', 'เร็ว', 'ช้า', 'ก่อน', 'หลัง', 'เกิน', 'ทันเวลา', 'พอดี', 
-  'วันนี้', 'พรุ่งนี้', 'มะรืน', 'เมื่อวาน', 'เมื่อวานซืน', 'อาทิตย์นี้', 'เดือนนี้', 'ปีนี้',  'ครึ่งปี',
-  'เช้า', 'สาย', 'เที่ยง', 'บ่าย', 'เย็น', 'ค่ำ', 'ดึก', 'คืน',  'ตี',
-  'เดี๋ยว', 'ก่อน', 'หลัง', 'แป๊บ', 'นาน', 'ชั่วคราว', 'ถาวร', 'ด่วน', 'รีบ', 'ค่อยๆ',
-
-  // สถานการณ์งาน
-  'ล่าช้า', 'ทัน', 'ไม่ทัน', 'เสร็จ', 'ค้าง', 'ติดขัด', 'แก้ไข', 'ซ่อม', 'ปรับ', 'เพิ่ม', 
-  'ลด', 'ตัด', 'เสริม', 'เติม', 'รวม', 'แยก', 'จัด', 'เรียง', 'กรอง', 'ค้น', 
-  'หา', 'เจอ', 'ไม่เจอ', 'หาย', 'ขาด', 'ครบ', 'น้อยไป', 'มากไป', 'พอดี', 'พอแล้ว', 
-  'ยังไม่พอ', 'เกินไป', 'พอแค่นี้', 'ได้แค่นี้', 'แค่นี้พอ', 
-
-  // คำเชื่อม/สำนวนติดปาก
-  'งั้น', 'นะ', 'สิ', 'ดิ', 'ด้วย', 'ก็', 'แต่', 'หรือ', 'แล้ว', 'เพราะ',
-  'ถ้า', 'แม้', 'ทั้งที่', 'แค่', 'เพียง', 'จน', 'ยัง', 'ดังนั้น', 'ทำให้', 'เลย',
-  'จึง', 'โดย', 'ใน', 'นอก', 'ระหว่าง', 'ทั้ง', 'ทั้งหมด', 'ทุก', 'ทุกคน', 'ทุกอย่าง',
-  'บาง', 'บางคน', 'บางอย่าง', 'บางที', 'บางครั้ง', 'บางทีก็', 'ส่วนใหญ่', 'ส่วนน้อย', 'ส่วนมาก', 'ส่วนหนึ่ง',
-
-  // วลี/ประโยคสั้นติดปากในออฟฟิศ
-  'ดูก่อน', 'ลองก่อน', 'คุยก่อน', 'รอก่อน', 'เดี๋ยวก่อน', 'แป๊บนึง',  'ขอโทษ', 'ขอบคุณ', 'ไม่เป็นไร',
-  'ช่วยได้', 'ช่วยไม่ได้', 'ทำได้', 'ทำไม่ได้', 'รู้', 'ไม่รู้', 'ลืม', 'จำได้', 'จำไม่ได้', 'แน่ใจ',
-  'ไม่แน่ใจ', 'น่าจะ', 'น่าจะได้', 'น่าจะโอเค', 'ลองดู', 'ลองดูก่อน', 'ดูก่อนนะ', 'เดี๋ยวว่า', 'เดี๋ยวดู', 
-  ]
-};
-
-// เก็บข้อมูลห้องเกม
+// ── Room store ───────────────────────────────────────────────────────────────
 const rooms = {};
 
-app.use(express.static('public'));
-app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// ── Auth APIs ────────────────────────────────────────────────────────────────
+app.post('/api/signup', async (req, res) => {
+  if (!MONGO_URL || mongoose.connection.readyState !== 1)
+    return res.status(503).json({ error: 'MongoDB ยังไม่ได้เชื่อมต่อ' });
+
+  const { email, password, displayName, avatarUrl } = req.body || {};
+  if (!email || !password || !displayName)
+    return res.status(400).json({ error: 'ต้องกรอก email, password และ displayName' });
+
+  try {
+    const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
+    const isAdmin    = adminEmail && email.toLowerCase() === adminEmail;
+    const existing   = await User.findOne({ email }).lean();
+    if (existing) return res.status(409).json({ error: 'อีเมลนี้ถูกใช้ไปแล้ว' });
+
+    const created = await User.create({
+      email,
+      passwordHash: bcrypt.hashSync(password, 10),
+      displayName,
+      avatarUrl: avatarUrl || null,
+      isAdmin: !!isAdmin
+    });
+    res.json({ user: publicUserRow(created) });
+  } catch (err) {
+    console.error('signup error:', err);
+    res.status(500).json({ error: 'สมัครไม่สำเร็จ' });
+  }
+});
+
+app.post('/api/login', async (req, res) => {
+  if (!MONGO_URL || mongoose.connection.readyState !== 1)
+    return res.status(503).json({ error: 'MongoDB ยังไม่ได้เชื่อมต่อ' });
+
+  const { email, password } = req.body || {};
+  if (!email || !password)
+    return res.status(400).json({ error: 'ต้องกรอก email และ password' });
+
+  try {
+    const user = await User.findOne({ email }).exec();
+    if (!user) return res.status(401).json({ error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
+
+    if (!bcrypt.compareSync(password, user.passwordHash))
+      return res.status(401).json({ error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
+
+    const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
+    if (adminEmail && email.toLowerCase() === adminEmail && !user.isAdmin) {
+      user.isAdmin = true;
+      await user.save();
+    }
+    res.json({ user: publicUserRow(user) });
+  } catch (err) {
+    console.error('login error:', err);
+    res.status(500).json({ error: 'ล็อกอินไม่สำเร็จ' });
+  }
+});
+
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).exec();
+    if (!user) return res.status(404).json({ error: 'ไม่พบผู้ใช้' });
+    res.json({ user: publicUserRow(user) });
+  } catch (err) {
+    res.status(500).json({ error: 'ดึงข้อมูลไม่สำเร็จ' });
+  }
+});
+
+app.put('/api/users/:id', async (req, res) => {
+  const { displayName, avatarUrl } = req.body || {};
+  try {
+    const user = await User.findById(req.params.id).exec();
+    if (!user) return res.status(404).json({ error: 'ไม่พบผู้ใช้' });
+    if (displayName) user.displayName = displayName;
+    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
+    await user.save();
+    res.json({ user: publicUserRow(user) });
+  } catch (err) {
+    res.status(500).json({ error: 'อัปเดตไม่สำเร็จ' });
+  }
+});
+
+// ── Rank API (admin only — verified by adminSecret header) ───────────────────
+// Client ส่ง header: x-admin-id: <adminUserId>
+// Server ตรวจว่า user นั้น isAdmin จริง
+app.put('/api/users/:id/rank', async (req, res) => {
+  const { rankName, rankColor } = req.body || {};
+  const adminId = req.headers['x-admin-id'];
+
+  if (!adminId) return res.status(403).json({ error: 'ต้องเป็น admin' });
+
+  try {
+    const admin = await User.findById(adminId).lean();
+    if (!admin || !admin.isAdmin) return res.status(403).json({ error: 'ต้องเป็น admin' });
+
+    const target = await User.findById(req.params.id).exec();
+    if (!target) return res.status(404).json({ error: 'ไม่พบผู้ใช้' });
+
+    // ถ้า rankName เป็นค่าว่างหรือ null = ลบยศ
+    if (!rankName || rankName.trim() === '') {
+      target.rank = { name: null, color: '#f97316' };
+    } else {
+      target.rank = { name: rankName.trim(), color: rankColor || '#f97316' };
+    }
+    await target.save();
+
+    // แจ้ง socket ทุกคนในห้องที่มี user นี้อยู่ ให้รีเฟรช rank
+    const updatedUser = publicUserRow(target);
+    io.emit('rank-updated', { userId: target._id.toString(), rank: updatedUser.rank });
+
+    res.json({ user: updatedUser });
+  } catch (err) {
+    console.error('rank error:', err);
+    res.status(500).json({ error: 'อัปเดตยศไม่สำเร็จ' });
+  }
+});
+
+// ค้นหา user ด้วย email (admin เท่านั้น)
+app.get('/api/users/search/:email', async (req, res) => {
+  const adminId = req.headers['x-admin-id'];
+  if (!adminId) return res.status(403).json({ error: 'ต้องเป็น admin' });
+
+  try {
+    const admin = await User.findById(adminId).lean();
+    if (!admin || !admin.isAdmin) return res.status(403).json({ error: 'ต้องเป็น admin' });
+
+    const user = await User.findOne({ email: req.params.email }).lean();
+    if (!user) return res.status(404).json({ error: 'ไม่พบผู้ใช้' });
+    res.json({ user: publicUserRow(user) });
+  } catch (err) {
+    res.status(500).json({ error: 'ค้นหาไม่สำเร็จ' });
+  }
+});
+
+// ── Error handler ────────────────────────────────────────────────────────────
+app.use((err, req, res, next) => {
+  if (err && (err.type === 'entity.too.large' || err.status === 413))
+    return res.status(413).json({ error: 'ไฟล์ใหญ่เกินไป' });
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'เกิดข้อผิดพลาดในเซิร์ฟเวอร์' });
+});
+
+// ── Socket helpers ────────────────────────────────────────────────────────────
+function canControlRoom(room, socket) {
+  if (!room) return false;
+  if (socket.id === room.creator) return true;
+  if (socket.isAdmin) return true;
+  return false;
+}
+
+// ── Socket.io ─────────────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
   console.log('🔗 Player connected:', socket.id);
 
-  // สร้างหรือเข้าร่วมห้อง
-  socket.on('join-room', (data) => {
-    const { roomId, playerName, selectedCat, timerSecs } = data;
+  socket.on('join-room', async (data) => {
+    const { roomId, playerName, selectedCat, timerSecs, userId, avatarUrl } = data;
 
     if (!rooms[roomId]) {
       if (selectedCat == null || timerSecs == null) {
@@ -173,301 +223,279 @@ io.on('connection', (socket) => {
         return;
       }
       rooms[roomId] = {
-        id: roomId,
-        creator: socket.id,
-        players: [],
-        playerNames: {},
-        currentWord: null,
-        wordAssignments: {},
-        scores: {},
-        gameState: 'lobby',
-        roundNum: 0,
+        id: roomId, creator: socket.id, players: [],
+        playerNames: {}, playerAvatars: {}, playerRanks: {},
+        userIds: {}, wordAssignments: {}, scores: {},
+        gameState: 'lobby', roundNum: 0,
         selectedCat: selectedCat || 'ปาร์ตี้',
-        timerSecs: timerSecs || 300,
-        guessResults: {}
+        timerSecs: timerSecs || 300, guessResults: {}
       };
     }
 
     const room = rooms[roomId];
-    
-    // เพิ่มผู้เล่น
+
+    // ดึง rank จาก DB ถ้ามี userId
+    let userRank = null;
+    if (userId && mongoose.connection.readyState === 1) {
+      try {
+        const u = await User.findById(userId).lean();
+        if (u) {
+          userRank = (u.rank && u.rank.name) ? { name: u.rank.name, color: u.rank.color || '#f97316' } : null;
+          socket.isAdmin = !!u.isAdmin;
+          if (socket.isAdmin) console.log(`👑 Admin joined room ${roomId}:`, playerName);
+        }
+      } catch (_) {}
+    }
+
     if (!room.players.includes(socket.id)) {
       room.players.push(socket.id);
-      room.playerNames[socket.id] = playerName;
-      room.scores[socket.id] = { correct: 0, wrong: 0, total: 0 };
+      room.playerNames[socket.id]  = playerName;
+      room.scores[socket.id]       = { correct: 0, wrong: 0, total: 0 };
+      room.playerAvatars[socket.id] = avatarUrl || null;
+      room.playerRanks[socket.id]  = userRank;
+      room.userIds[socket.id]      = userId || null;
     }
 
     socket.join(roomId);
-    socket.roomId = roomId;
+    socket.roomId     = roomId;
     socket.playerName = playerName;
+    socket.avatarUrl  = avatarUrl || null;
+    socket.userId     = userId || null;
 
     console.log(`✅ ${playerName} joined room ${roomId} (Total: ${room.players.length})`);
 
-    room.players.forEach(pid => {
-      io.to(pid).emit('room-updated', {
-        roomId,
-        players: room.players.map(p => ({
-          id: p,
-          name: room.playerNames[p],
-          score: room.scores[p]?.correct || 0
-        })),
-        isHost: pid === room.creator,
-        gameState: room.gameState,
-        selectedCat: room.selectedCat,
-        timerSecs: room.timerSecs,
-        roundNum: room.roundNum
-      });
-    });
-    // บอก client ว่า socket.id ของตัวเองคืออะไร (ใช้เปรียบเทียบว่าใครคือ "ฉัน")
+    broadcastRoomUpdate(room);
     socket.emit('your-player-id', socket.id);
   });
 
-  // เปลี่ยนหมวดคำ
   socket.on('change-category', (data) => {
     const room = rooms[socket.roomId];
-    if (room && socket.id === room.creator) {
+    if (canControlRoom(room, socket)) {
       room.selectedCat = data.category;
-      room.players.forEach(pid => {
-        io.to(pid).emit('room-updated', {
-          selectedCat: room.selectedCat,
-          isHost: pid === room.creator
-        });
-      });
+      room.players.forEach(pid => io.to(pid).emit('room-updated', { selectedCat: room.selectedCat, isHost: pid === room.creator }));
     }
   });
 
-  // เปลี่ยนเวลา
   socket.on('change-timer', (data) => {
     const room = rooms[socket.roomId];
-    if (room && socket.id === room.creator) {
+    if (canControlRoom(room, socket)) {
       room.timerSecs = data.timerSecs;
-      room.players.forEach(pid => {
-        io.to(pid).emit('room-updated', {
-          timerSecs: room.timerSecs,
-          isHost: pid === room.creator
-        });
-      });
+      room.players.forEach(pid => io.to(pid).emit('room-updated', { timerSecs: room.timerSecs, isHost: pid === room.creator }));
     }
   });
 
-  // สตาร์ตเกม
   socket.on('start-game', () => {
     const room = rooms[socket.roomId];
-    if (!room || room.gameState === 'playing') return;
-    if (socket.id !== room.creator) return;
+    if (!room || room.gameState === 'playing' || !canControlRoom(room, socket)) return;
 
     room.gameState = 'playing';
-    room.roundNum = (room.roundNum || 0) + 1;
+    room.roundNum  = (room.roundNum || 0) + 1;
     room.guessResults = {};
-    room.playersWhoGuessed = {}; // ใครกดทายคำของตัวเองแล้ว
-
-    // สุ่มคำให้ผู้เล่นแต่ละคน
+    room.playersWhoGuessed = {};
     assignWordsToPlayers(room);
 
-    // ส่งให้แต่ละคนโดยไม่ส่งคำของตัวเอง (รู้แค่คำของคนอื่น)
     room.startTime = Date.now();
     room.players.forEach(playerId => {
       io.to(playerId).emit('game-started', {
         gameState: 'playing',
-        roundNum: room.roundNum,
+        roundNum:  room.roundNum,
         timerSecs: room.timerSecs,
         startTime: room.startTime,
         playerWords: room.players.map(pid => ({
-          playerId: pid,
-          word: pid === playerId ? '' : (room.wordAssignments[pid] || ''),
+          playerId,
+          word:       pid === playerId ? '' : (room.wordAssignments[pid] || ''),
           playerName: room.playerNames[pid]
         }))
       });
     });
-
     console.log(`🎮 Game started in room ${socket.roomId}`);
   });
 
-  // บันทึกคำตอบ — ห้ามทายคำของคนอื่น ต้องทายแค่คำบนหัวตัวเอง (targetPlayerId ต้องเป็น socket.id)
   socket.on('submit-guess', (data) => {
     const room = rooms[socket.roomId];
     if (!room) return;
-
     const { targetPlayerId, guess } = data;
     if (targetPlayerId !== socket.id) return;
 
     const actualWord = room.wordAssignments[targetPlayerId];
-    const isCorrect = guess.toLowerCase().trim() === actualWord.toLowerCase().trim();
+    const isCorrect  = guess.toLowerCase().trim() === actualWord.toLowerCase().trim();
+    const resultKey  = `${socket.id}_${targetPlayerId}`;
 
-    const resultKey = `${socket.id}_${targetPlayerId}`;
-    room.guessResults[resultKey] = {
-      guesserId: socket.id,
-      guesserName: socket.playerName,
-      targetPlayerId,
-      guess,
-      correct: isCorrect
-    };
-
-    if (targetPlayerId === socket.id) room.playersWhoGuessed[socket.id] = true;
+    room.guessResults[resultKey] = { guesserId: socket.id, guesserName: socket.playerName, targetPlayerId, guess, correct: isCorrect };
+    room.playersWhoGuessed[socket.id] = true;
     const allHaveGuessed = room.players.every(pid => room.playersWhoGuessed[pid]);
 
-    io.to(socket.roomId).emit('guess-received', {
-      resultKey,
-      guessResult: room.guessResults[resultKey],
-      allHaveGuessed
-    });
-
-    console.log(`💭 Guess: ${socket.playerName} -> ${actualWord} = ${isCorrect}`);
+    io.to(socket.roomId).emit('guess-received', { resultKey, guessResult: room.guessResults[resultKey], allHaveGuessed });
+    console.log(`💭 ${socket.playerName} -> ${actualWord} = ${isCorrect}`);
   });
 
-  // สิ้นสุดรอบ (โฮสเรียก) — กดได้เมื่อทุกคนทายครบ หรือหมดเวลา (timeUp)
-  socket.on('end-round', (data) => {
+  socket.on('end-round', () => {
     const room = rooms[socket.roomId];
-    if (!room || socket.id !== room.creator) return;
-    if (room.gameState !== 'playing') return;
-
+    if (!canControlRoom(room, socket) || room.gameState !== 'playing') return;
     room.gameState = 'guessing';
-
     io.to(socket.roomId).emit('round-ended', {
-      gameState: 'guessing',
-      guessResults: room.guessResults,
-      correctAnswers: room.players.map(pid => ({
-        playerId: pid,
-        word: room.wordAssignments[pid],
-        playerName: room.playerNames[pid]
-      }))
+      gameState:      'guessing',
+      guessResults:   room.guessResults,
+      correctAnswers: room.players.map(pid => ({ playerId: pid, word: room.wordAssignments[pid], playerName: room.playerNames[pid] }))
     });
-
     console.log(`✋ Round ${room.roundNum} ended`);
   });
 
-  // ต่อรอบถัดไป
   socket.on('next-round', () => {
     const room = rooms[socket.roomId];
-    if (!room || socket.id !== room.creator) return;
-
+    if (!canControlRoom(room, socket)) return;
     room.gameState = 'playing';
     room.roundNum++;
     room.guessResults = {};
     room.playersWhoGuessed = {};
-
     assignWordsToPlayers(room);
-
     room.startTime = Date.now();
     room.players.forEach(playerId => {
       io.to(playerId).emit('game-started', {
-        gameState: 'playing',
-        roundNum: room.roundNum,
-        timerSecs: room.timerSecs,
-        startTime: room.startTime,
+        gameState: 'playing', roundNum: room.roundNum,
+        timerSecs: room.timerSecs, startTime: room.startTime,
         playerWords: room.players.map(pid => ({
-          playerId: pid,
-          word: pid === playerId ? '' : (room.wordAssignments[pid] || ''),
-          playerName: room.playerNames[pid]
+          playerId, word: pid === playerId ? '' : (room.wordAssignments[pid] || ''), playerName: room.playerNames[pid]
         }))
       });
     });
-
     console.log(`🔄 Starting round ${room.roundNum}`);
   });
 
-  // ออกจากห้อง
-  socket.on('leave-room', () => {
-    const room = rooms[socket.roomId];
-    if (room) {
-      const wasCreator = socket.id === room.creator;
-      if (wasCreator) {
-        socket.to(socket.roomId).emit('host-left-room', { message: 'เจ้าของห้องออกจากห้องแล้ว' });
-      }
-      room.players = room.players.filter(pid => pid !== socket.id);
-      delete room.playerNames[socket.id];
-      delete room.scores[socket.id];
-      if (room.wordAssignments) delete room.wordAssignments[socket.id];
-      if (room.playersWhoGuessed) delete room.playersWhoGuessed[socket.id];
-      Object.keys(room.guessResults || {}).forEach(key => {
-        if (key.startsWith(socket.id + '_') || key.endsWith('_' + socket.id)) delete room.guessResults[key];
-      });
+  // Admin กด assign rank ให้คนอื่นใน room (realtime)
+  socket.on('admin-set-rank', async (data) => {
+    if (!socket.isAdmin) return;
+    const { targetUserId, rankName, rankColor } = data;
+    if (!targetUserId) return;
 
-      if (room.players.length === 0) {
-        delete rooms[socket.roomId];
-        console.log(`❌ Room ${socket.roomId} deleted (empty)`);
-      } else {
-        io.to(socket.roomId).emit('player-left', {
-          playerId: socket.id,
-          playerName: socket.playerName,
-          players: room.players.map(pid => ({
-            id: pid,
-            name: room.playerNames[pid]
-          })),
-          scores: room.scores
-        });
-        console.log(`👋 ${socket.playerName} left room ${socket.roomId}`);
+    try {
+      const target = await User.findById(targetUserId).exec();
+      if (!target) return;
+
+      target.rank = (!rankName || rankName.trim() === '')
+        ? { name: null, color: '#f97316' }
+        : { name: rankName.trim(), color: rankColor || '#f97316' };
+      await target.save();
+
+      const rank = target.rank.name ? { name: target.rank.name, color: target.rank.color } : null;
+
+      // อัปเดต room state
+      const room = rooms[socket.roomId];
+      if (room) {
+        // หา socket ของ target user ใน room
+        const targetSocketId = room.players.find(pid => room.userIds[pid] === targetUserId);
+        if (targetSocketId) room.playerRanks[targetSocketId] = rank;
       }
+
+      // แจ้งทุกคนใน room
+      io.to(socket.roomId).emit('rank-updated', { userId: targetUserId, rank });
+      socket.emit('admin-rank-success', { userId: targetUserId, rank, displayName: target.displayName });
+      console.log(`🏅 Admin set rank for ${target.displayName}: ${rankName || 'removed'}`);
+    } catch (err) {
+      console.error('admin-set-rank error:', err);
+      socket.emit('admin-rank-error', { message: 'อัปเดตยศไม่สำเร็จ' });
     }
+  });
+
+  // Admin ค้นหา user ใน room ด้วย email (via socket)
+  socket.on('admin-search-user', async (data) => {
+    if (!socket.isAdmin) return;
+    const { email } = data;
+    try {
+      const user = await User.findOne({ email: email.trim() }).lean();
+      if (!user) { socket.emit('admin-search-result', { error: 'ไม่พบผู้ใช้' }); return; }
+      socket.emit('admin-search-result', { user: publicUserRow(user) });
+    } catch (err) {
+      socket.emit('admin-search-result', { error: 'ค้นหาไม่สำเร็จ' });
+    }
+  });
+
+  socket.on('leave-room', () => handleLeave(socket));
+  socket.on('disconnect', () => handleLeave(socket, true));
+});
+
+function handleLeave(socket, isDisconnect = false) {
+  const room = rooms[socket.roomId];
+  if (!room) return;
+
+  const wasCreator = socket.id === room.creator;
+  if (wasCreator) socket.to(socket.roomId).emit('host-left-room', { message: 'เจ้าของห้องออกจากห้องแล้ว' });
+
+  room.players = room.players.filter(pid => pid !== socket.id);
+  ['playerNames','scores','playerAvatars','playerRanks','userIds','wordAssignments','playersWhoGuessed'].forEach(k => {
+    if (room[k]) delete room[k][socket.id];
+  });
+  Object.keys(room.guessResults || {}).forEach(k => {
+    if (k.startsWith(socket.id+'_') || k.endsWith('_'+socket.id)) delete room.guessResults[k];
+  });
+
+  if (room.players.length === 0) {
+    delete rooms[socket.roomId];
+    console.log(`❌ Room ${socket.roomId} deleted`);
+  } else {
+    if (isDisconnect) {
+      io.to(socket.roomId).emit('player-disconnected', {
+        playerId: socket.id,
+        players: room.players.map(pid => ({ id: pid, name: room.playerNames[pid] })),
+        scores: room.scores
+      });
+    } else {
+      io.to(socket.roomId).emit('player-left', {
+        playerId: socket.id, playerName: socket.playerName,
+        players: room.players.map(pid => ({ id: pid, name: room.playerNames[pid] })),
+        scores: room.scores
+      });
+      console.log(`👋 ${socket.playerName} left room ${socket.roomId}`);
+    }
+  }
+
+  if (!isDisconnect) {
     socket.leave(socket.roomId);
     socket.roomId = null;
     socket.playerName = null;
-  });
+  }
+  console.log(`🔌 Player ${isDisconnect ? 'disconnected' : 'left'}: ${socket.id}`);
+}
 
-  // ขาดการเชื่อมต่อ
-  socket.on('disconnect', () => {
-    const room = rooms[socket.roomId];
-    if (room) {
-      const wasCreator = socket.id === room.creator;
-      if (wasCreator) {
-        socket.to(socket.roomId).emit('host-left-room', { message: 'เจ้าของห้องออกจากห้องแล้ว' });
-      }
-      room.players = room.players.filter(pid => pid !== socket.id);
-      delete room.playerNames[socket.id];
-      delete room.scores[socket.id];
-      if (room.wordAssignments) delete room.wordAssignments[socket.id];
-      if (room.playersWhoGuessed) delete room.playersWhoGuessed[socket.id];
-      Object.keys(room.guessResults || {}).forEach(key => {
-        if (key.startsWith(socket.id + '_') || key.endsWith('_' + socket.id)) delete room.guessResults[key];
-      });
-
-      if (room.players.length === 0) {
-        delete rooms[socket.roomId];
-        console.log(`❌ Room ${socket.roomId} deleted (disconnect)`);
-      } else {
-        io.to(socket.roomId).emit('player-disconnected', {
-          playerId: socket.id,
-          players: room.players.map(pid => ({
-            id: pid,
-            name: room.playerNames[pid]
-          })),
-          scores: room.scores
-        });
-      }
-    }
-    console.log(`🔌 Player disconnected: ${socket.id}`);
-  });
-});
-
-// ถ้าผู้เล่นมากกว่าจำนวนคำในหมวด จะวนใช้คำซ้ำ (i % shuffled.length)
-function assignWordsToPlayers(room) {
-  const catWords = CATEGORIES[room.selectedCat] || CATEGORIES['ปาร์ตี้'] || [];
-  const shuffled = [...catWords].sort(() => Math.random() - 0.5);
-
-  room.wordAssignments = {};
-  room.players.forEach((pid, i) => {
-    room.wordAssignments[pid] = shuffled[i % shuffled.length];
+function broadcastRoomUpdate(room) {
+  room.players.forEach(pid => {
+    io.to(pid).emit('room-updated', {
+      roomId: room.id,
+      players: room.players.map(p => ({
+        id:        p,
+        name:      room.playerNames[p],
+        avatarUrl: room.playerAvatars?.[p] || null,
+        rank:      room.playerRanks?.[p] || null,
+        userId:    room.userIds?.[p] || null,
+        score:     room.scores[p]?.correct || 0
+      })),
+      isHost:      pid === room.creator,
+      gameState:   room.gameState,
+      selectedCat: room.selectedCat,
+      timerSecs:   room.timerSecs,
+      roundNum:    room.roundNum
+    });
   });
 }
 
-// ลบห้องที่โฮสต์ออกไปแล้ว (creator ไม่ได้อยู่ใน room.players) — แก้ memory leak
-const ROOM_CLEANUP_INTERVAL_MS = 2 * 60 * 1000;
+function assignWordsToPlayers(room) {
+  const catWords = CATEGORIES[room.selectedCat] || CATEGORIES['ปาร์ตี้'] || [];
+  const shuffled = [...catWords].sort(() => Math.random() - 0.5);
+  room.wordAssignments = {};
+  room.players.forEach((pid, i) => { room.wordAssignments[pid] = shuffled[i % shuffled.length]; });
+}
+
+// Cleanup empty rooms
 setInterval(() => {
   Object.keys(rooms).forEach(roomId => {
     const room = rooms[roomId];
-    if (!room) return;
-    if (room.players.length === 0) {
-      delete rooms[roomId];
-      return;
-    }
+    if (!room || room.players.length === 0) { delete rooms[roomId]; return; }
     if (!room.players.includes(room.creator)) {
       room.players.forEach(pid => io.to(pid).emit('host-left-room', { message: 'ห้องถูกปิด' }));
       delete rooms[roomId];
     }
   });
-}, ROOM_CLEANUP_INTERVAL_MS);
+}, 2 * 60 * 1000);
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+http.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
